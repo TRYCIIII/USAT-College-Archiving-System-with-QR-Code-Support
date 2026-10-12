@@ -1,0 +1,100 @@
+/* ============================================
+   DARK MODE THEME
+   ============================================ */
+
+body.dark-mode {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+body.dark-mode .stat-card,
+body.dark-mode .table-container,
+body.dark-mode .top-navbar,
+body.dark-mode .card,
+body.dark-mode .modal-content {
+    background: rgba(30, 30, 46, 0.95);
+    backdrop-filter: blur(20px);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .stat-card h3,
+body.dark-mode .table-header h4,
+body.dark-mode .card-header,
+body.dark-mode .modal-header {
+    color: white;
+}
+
+body.dark-mode .data-table tbody td {
+    color: var(--gray-300);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .data-table tbody tr {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .data-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .form-control {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+body.dark-mode .form-control:focus {
+    border-color: var(--primary-500);
+}
+
+body.dark-mode .form-label {
+    color: var(--gray-300);
+}
+
+body.dark-mode .nav-tabs {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .nav-tabs .nav-link {
+    color: var(--gray-400);
+}
+
+body.dark-mode .nav-tabs .nav-link.active {
+    color: var(--primary-400);
+}
+
+body.dark-mode .alert {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .toast {
+    background: rgba(30, 30, 46, 0.95);
+    color: white;
+}
+
+/* Dark Mode Toggle Button */
+.dark-mode-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    padding: 8px;
+    border-radius: var(--radius-lg);
+    transition: var(--transition-base);
+    color: var(--gray-700);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dark-mode-toggle:hover {
+    background: var(--gray-100);
+    transform: scale(1.05);
+}
+
+body.dark-mode .dark-mode-toggle {
+    color: white;
+}
+
+body.dark-mode .dark-mode-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+}

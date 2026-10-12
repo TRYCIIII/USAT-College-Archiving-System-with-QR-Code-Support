@@ -1,0 +1,157 @@
+[23-Apr-2026 07:53:45 Europe/Berlin] === UPLOAD REQUEST STARTED ===
+[23-Apr-2026 07:53:45 Europe/Berlin] POST data: Array
+(
+    [folder_id] => 7
+    [title_of_program] => awe
+    [date_conducted] => 2026-04-20
+    [type_of_service] => awe
+    [community_served] => aw
+    [beneficiaries] => 12
+    [description] => a
+)
+
+[23-Apr-2026 07:53:45 Europe/Berlin] FILES data: Array
+(
+    [file] => Array
+        (
+            [name] => Screenshot (8).png
+            [type] => image/png
+            [tmp_name] => C:\xampp\tmp\php4170.tmp
+            [error] => 0
+            [size] => 173500
+        )
+
+)
+
+[23-Apr-2026 07:53:45 Europe/Berlin] File info - Name: Screenshot (8).png, Size: 173500, Tmp: C:\xampp\tmp\php4170.tmp, Ext: png
+[23-Apr-2026 07:53:45 Europe/Berlin] Attempting to move file to: C:\xampp\htdocs\Archive/uploads/69e9b3e9819c34.39621880.png
+[23-Apr-2026 07:53:45 Europe/Berlin] File moved successfully to: C:\xampp\htdocs\Archive/uploads/69e9b3e9819c34.39621880.png
+[23-Apr-2026 07:53:45 Europe/Berlin] Note: qr_code column not found or update failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'qr_code' in 'field list'
+[23-Apr-2026 07:53:45 Europe/Berlin] SUCCESS: File uploaded and saved to database. File ID: 5
+[23-Apr-2026 08:09:43 Europe/Berlin] === UPLOAD REQUEST STARTED ===
+[23-Apr-2026 08:09:43 Europe/Berlin] POST data: Array
+(
+    [folder_id] => 5
+    [title_of_program] => aw
+    [date_conducted] => 2026-04-22
+    [type_of_service] => aw
+    [community_served] => awe
+    [beneficiaries] => 213
+    [description] => zw
+)
+
+[23-Apr-2026 08:09:43 Europe/Berlin] FILES data: Array
+(
+    [file] => Array
+        (
+            [name] => EDITED_NERPIOL_IMRAD_CAMPUS_CEOs_THE_START_UP_STORIES_OF_STUDENT.docx
+            [type] => application/vnd.openxmlformats-officedocument.wordprocessingml.document
+            [tmp_name] => C:\xampp\tmp\phpDEA7.tmp
+            [error] => 0
+            [size] => 1646689
+        )
+
+)
+
+[23-Apr-2026 08:09:43 Europe/Berlin] File info - Name: EDITED_NERPIOL_IMRAD_CAMPUS_CEOs_THE_START_UP_STORIES_OF_STUDENT.docx, Size: 1646689, Tmp: C:\xampp\tmp\phpDEA7.tmp, Ext: docx
+[23-Apr-2026 08:09:43 Europe/Berlin] Attempting to move file to: C:\xampp\htdocs\Archive/uploads/69e9b7a749f388.61936907.docx
+[23-Apr-2026 08:09:43 Europe/Berlin] File moved successfully to: C:\xampp\htdocs\Archive/uploads/69e9b7a749f388.61936907.docx
+[23-Apr-2026 08:09:43 Europe/Berlin] Note: qr_code column not found or update failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'qr_code' in 'field list'
+[23-Apr-2026 08:09:43 Europe/Berlin] SUCCESS: File uploaded and saved to database. File ID: 6
+[23-Apr-2026 08:12:40 Europe/Berlin] === UPLOAD REQUEST STARTED ===
+[23-Apr-2026 08:12:40 Europe/Berlin] POST data: Array
+(
+    [folder_id] => 5
+    [title_of_program] => asd
+    [date_conducted] => 2026-04-28
+    [type_of_service] => awe
+    [community_served] => asdasd
+    [beneficiaries] => 123
+    [description] => asdas
+)
+
+[23-Apr-2026 08:12:40 Europe/Berlin] FILES data: Array
+(
+    [file] => Array
+        (
+            [name] => Screenshot (4).png
+            [type] => image/png
+            [tmp_name] => C:\xampp\tmp\php94C0.tmp
+            [error] => 0
+            [size] => 149948
+        )
+
+)
+
+[23-Apr-2026 08:12:40 Europe/Berlin] File info - Name: Screenshot (4).png, Size: 149948, Tmp: C:\xampp\tmp\php94C0.tmp, Ext: png
+[23-Apr-2026 08:12:40 Europe/Berlin] Attempting to move file to: C:\xampp\htdocs\Archive/uploads/69e9b858ec2a56.17964487.png
+[23-Apr-2026 08:12:40 Europe/Berlin] File moved successfully to: C:\xampp\htdocs\Archive/uploads/69e9b858ec2a56.17964487.png
+[23-Apr-2026 08:12:40 Europe/Berlin] Note: qr_code column not found or update failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'qr_code' in 'field list'
+[23-Apr-2026 08:12:40 Europe/Berlin] SUCCESS: File uploaded and saved to database. File ID: 7
+[23-Apr-2026 08:13:55 Europe/Berlin] === UPLOAD REQUEST STARTED ===
+[23-Apr-2026 08:13:55 Europe/Berlin] POST data: Array
+(
+    [folder_id] => 5
+    [title_of_program] => aw
+    [date_conducted] => 2026-04-22
+    [type_of_service] => aw
+    [community_served] => awe
+    [beneficiaries] => 123
+    [description] => 123
+)
+
+[23-Apr-2026 08:13:55 Europe/Berlin] FILES data: Array
+(
+    [file] => Array
+        (
+            [name] => EDITED_NERPIOL_IMRAD_CAMPUS_CEOs_THE_START_UP_STORIES_OF_STUDENT (3).docx
+            [type] => application/vnd.openxmlformats-officedocument.wordprocessingml.document
+            [tmp_name] => C:\xampp\tmp\phpB842.tmp
+            [error] => 0
+            [size] => 1646689
+        )
+
+)
+
+[23-Apr-2026 08:13:55 Europe/Berlin] File info - Name: EDITED_NERPIOL_IMRAD_CAMPUS_CEOs_THE_START_UP_STORIES_OF_STUDENT (3).docx, Size: 1646689, Tmp: C:\xampp\tmp\phpB842.tmp, Ext: docx
+[23-Apr-2026 08:13:55 Europe/Berlin] Attempting to move file to: C:\xampp\htdocs\Archive/uploads/69e9b8a3932a10.91585177.docx
+[23-Apr-2026 08:13:55 Europe/Berlin] File moved successfully to: C:\xampp\htdocs\Archive/uploads/69e9b8a3932a10.91585177.docx
+[23-Apr-2026 08:13:55 Europe/Berlin] Note: qr_code column not found or update failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'qr_code' in 'field list'
+[23-Apr-2026 08:13:55 Europe/Berlin] SUCCESS: File uploaded and saved to database. File ID: 8
+[23-Apr-2026 08:25:50 Europe/Berlin] === UPLOAD REQUEST STARTED ===
+[23-Apr-2026 08:25:50 Europe/Berlin] POST data: Array
+(
+    [folder_id] => 11
+    [title_of_program] => AWE
+    [date_conducted] => 2026-04-09
+    [type_of_service] => AWE
+    [community_served] => AWE
+    [beneficiaries] => 123
+    [description] => 1
+)
+
+[23-Apr-2026 08:25:50 Europe/Berlin] FILES data: Array
+(
+    [file] => Array
+        (
+            [name] => EDITED_NERPIOL_IMRAD_CAMPUS_CEOs_THE_START_UP_STORIES_OF_STUDENT (3) (1).docx
+            [type] => application/vnd.openxmlformats-officedocument.wordprocessingml.document
+            [tmp_name] => C:\xampp\tmp\phpA10C.tmp
+            [error] => 0
+            [size] => 1646689
+        )
+
+)
+
+[23-Apr-2026 08:25:50 Europe/Berlin] File info - Name: EDITED_NERPIOL_IMRAD_CAMPUS_CEOs_THE_START_UP_STORIES_OF_STUDENT (3) (1).docx, Size: 1646689, Tmp: C:\xampp\tmp\phpA10C.tmp, Ext: docx
+[23-Apr-2026 08:25:50 Europe/Berlin] Attempting to move file to: C:\xampp\htdocs\Archive/uploads/69e9bb6e87f197.63688242.docx
+[23-Apr-2026 08:25:50 Europe/Berlin] File moved successfully to: C:\xampp\htdocs\Archive/uploads/69e9bb6e87f197.63688242.docx
+[23-Apr-2026 08:25:50 Europe/Berlin] Note: qr_code column not found or update failed: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'qr_code' in 'field list'
+[23-Apr-2026 08:25:50 Europe/Berlin] SUCCESS: File uploaded and saved to database. File ID: 9
+[25-Apr-2026 02:34:54 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to undefined function imagecreatetruecolor() in C:\xampp\htdocs\Archive\upload_file.php:303
+Stack trace:
+#0 C:\xampp\htdocs\Archive\upload_file.php(293): createSimpleQRPlaceholder('http://localhos...', '33')
+#1 C:\xampp\htdocs\Archive\upload_file.php(191): generateQRCode('33', 'USAT_DOC_33_177...')
+#2 {main}
+  thrown in C:\xampp\htdocs\Archive\upload_file.php on line 303
+[28-Apr-2026 03:37:00 Europe/Berlin] Upload error: SQLSTATE[23000]: Integrity constraint violation: 1048 Column 'no_of_beneficiaries' cannot be null

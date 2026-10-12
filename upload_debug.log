@@ -1,0 +1,141 @@
+[2026-04-28 14:50:16] === Upload Started ===
+[2026-04-28 14:50:16] REQUEST_METHOD: POST
+[2026-04-28 14:50:16] POST data: Array
+(
+    [folder_id] => 36
+    [custom_control_number] => 
+    [title_of_program] => asdasd
+    [date_conducted] => 2026-04-20
+    [type_of_service] => asdasd
+    [community_served] => 
+    [beneficiaries] => 12312
+    [description] => as
+)
+
+[2026-04-28 14:50:16] FILES data: Array
+(
+    [file] => Array
+        (
+            [name] => Gemini_Generated_Image_t6sl0it6sl0it6sl.png
+            [type] => image/png
+            [tmp_name] => C:\xampp\tmp\php61CA.tmp
+            [error] => 0
+            [size] => 1175166
+        )
+
+)
+
+[2026-04-28 14:50:16] Folder ID: 36
+[2026-04-28 14:50:16] Custom Control Number: 
+[2026-04-28 14:50:16] Filename: Gemini_Generated_Image_t6sl0it6sl0it6sl.png
+[2026-04-28 14:50:16] File extension: png
+[2026-04-28 14:50:16] Temp path: C:\xampp\tmp\php61CA.tmp
+[2026-04-28 14:50:16] Generated control number: USAT-20260428-0004
+[2026-04-28 14:50:16] Upload directory: C:\xampp\htdocs\Archive\uploads\
+[2026-04-28 14:50:16] Upload directory writable: Yes
+[2026-04-28 14:50:16] Final file path: C:\xampp\htdocs\Archive\uploads\1777380616_69f0ad08b1ad9.png
+[2026-04-28 14:50:16] File moved successfully
+[2026-04-28 14:50:16] File size: 1147.62 KB
+[2026-04-28 14:50:16] Database insert result: Success
+[2026-04-28 14:50:16] File ID: 38
+[2026-04-28 14:50:16] File URL for QR: http://localhost/archive/view_file.php?id=38
+[2026-04-28 14:50:16] Trying QR API: https://quickchart.io/qr?text=http%3A%2F%2Flocalhost%2Farchive%2Fview_file.php%3Fid%3D38&size=300
+[2026-04-28 14:50:17] QR API succeeded
+[2026-04-28 14:50:17] QR saved to: C:\xampp\htdocs\Archive\qrcodes/qr_38_1777380616.png
+[2026-04-28 14:50:17] QR Image generated: qrcodes/qr_38_1777380616.png
+[2026-04-28 14:50:17] QR Base64 generated
+[2026-04-28 14:50:17] AJAX success response sent
+[2026-04-29 08:44:24] === Upload Started ===
+[2026-04-29 08:44:24] REQUEST_METHOD: POST
+[2026-04-29 08:44:24] POST data: Array
+(
+    [folder_id] => 43
+    [custom_control_number] => 
+    [title_of_program] => BSTM 2A's Birthday Celebration
+    [date_conducted] => 2026-04-16
+    [type_of_service] => Community-based social event
+    [community_served] => Brgy. Old Sagay, Sagay City
+    [beneficiaries] => 150
+    [description] => 
+)
+
+[2026-04-29 08:44:24] FILES data: Array
+(
+    [file] => Array
+        (
+            [name] => Birthday-Celebration-at-Old-Sagay.pdf
+            [type] => application/pdf
+            [tmp_name] => C:\xampp\tmp\phpEDD0.tmp
+            [error] => 0
+            [size] => 3875629
+        )
+
+)
+
+[2026-04-29 08:44:24] Folder ID: 43
+[2026-04-29 08:44:24] Custom Control Number: 
+[2026-04-29 08:44:24] Filename: Birthday-Celebration-at-Old-Sagay.pdf
+[2026-04-29 08:44:24] File extension: pdf
+[2026-04-29 08:44:24] Temp path: C:\xampp\tmp\phpEDD0.tmp
+[2026-04-29 08:44:24] Generated control number: USAT-20260429-0001
+[2026-04-29 08:44:24] Upload directory: C:\xampp\htdocs\Archive\uploads\
+[2026-04-29 08:44:24] Upload directory writable: Yes
+[2026-04-29 08:44:24] Final file path: C:\xampp\htdocs\Archive\uploads\1777445064_69f1a8c80bfed.pdf
+[2026-04-29 08:44:24] File moved successfully
+[2026-04-29 08:44:24] File size: 3784.79 KB
+[2026-04-29 08:44:24] Database insert result: Success
+[2026-04-29 08:44:24] File ID: 39
+[2026-04-29 08:44:24] File URL for QR: http://localhost/archive/view_file.php?id=39
+[2026-04-29 08:44:24] Trying QR API: https://quickchart.io/qr?text=http%3A%2F%2Flocalhost%2Farchive%2Fview_file.php%3Fid%3D39&size=300
+[2026-04-29 08:44:24] QR API succeeded
+[2026-04-29 08:44:24] QR saved to: C:\xampp\htdocs\Archive\qrcodes/qr_39_1777445064.png
+[2026-04-29 08:44:24] QR Image generated: qrcodes/qr_39_1777445064.png
+[2026-04-29 08:44:24] QR Base64 generated
+[2026-04-29 08:44:24] AJAX success response sent
+[2026-04-29 11:39:21] === Upload Started ===
+[2026-04-29 11:39:21] REQUEST_METHOD: POST
+[2026-04-29 11:39:21] POST data: Array
+(
+    [folder_id] => 40
+    [custom_control_number] => 
+    [title_of_program] => Coastal Clean-Up, Tree Planting and Gift Giving
+    [date_conducted] => 2026-04-07
+    [type_of_service] => clean up drive, tree planting, and community extension
+    [community_served] => community members in partner barangay of the institution
+    [beneficiaries] => 50
+    [description] => 
+)
+
+[2026-04-29 11:39:21] FILES data: Array
+(
+    [file] => Array
+        (
+            [name] => CES-1.pdf
+            [type] => application/pdf
+            [tmp_name] => C:\xampp\tmp\php19C9.tmp
+            [error] => 0
+            [size] => 8252772
+        )
+
+)
+
+[2026-04-29 11:39:21] Folder ID: 40
+[2026-04-29 11:39:21] Custom Control Number: 
+[2026-04-29 11:39:21] Filename: CES-1.pdf
+[2026-04-29 11:39:21] File extension: pdf
+[2026-04-29 11:39:21] Temp path: C:\xampp\tmp\php19C9.tmp
+[2026-04-29 11:39:21] Generated control number: USAT-20260429-0002
+[2026-04-29 11:39:21] Upload directory: C:\xampp\htdocs\Archive\uploads\
+[2026-04-29 11:39:21] Upload directory writable: Yes
+[2026-04-29 11:39:21] Final file path: C:\xampp\htdocs\Archive\uploads\1777455561_69f1d1c92e592.pdf
+[2026-04-29 11:39:21] File moved successfully
+[2026-04-29 11:39:21] File size: 8059.35 KB
+[2026-04-29 11:39:21] Database insert result: Success
+[2026-04-29 11:39:21] File ID: 40
+[2026-04-29 11:39:21] File URL for QR: http://localhost/archive/view_file.php?id=40
+[2026-04-29 11:39:21] Trying QR API: https://quickchart.io/qr?text=http%3A%2F%2Flocalhost%2Farchive%2Fview_file.php%3Fid%3D40&size=300
+[2026-04-29 11:39:22] QR API succeeded
+[2026-04-29 11:39:22] QR saved to: C:\xampp\htdocs\Archive\qrcodes/qr_40_1777455561.png
+[2026-04-29 11:39:22] QR Image generated: qrcodes/qr_40_1777455561.png
+[2026-04-29 11:39:22] QR Base64 generated
+[2026-04-29 11:39:22] AJAX success response sent

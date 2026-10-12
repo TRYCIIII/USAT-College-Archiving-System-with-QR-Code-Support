@@ -1,0 +1,1 @@
+[08-Oct-2026 18:01:53 Europe/Berlin] upload_file FATAL: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'control_number' in 'field list' @ C:\xampp\htdocs\UsatCollege\upload_file.php:229
