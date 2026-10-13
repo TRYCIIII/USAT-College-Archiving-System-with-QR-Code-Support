@@ -2,18 +2,8 @@
 /**
  * Authentication and Authorization System
  * USAT College Archiving System
- *
- * FIXES APPLIED:
- *   1. Added AUTH_SKIP_GUARD switch (lets logout.php bypass page guard)
- *   2. Fixed isLoggedIn() → calls destroySession() instead of logout()
- *      (avoids recursion + redirect loops)
- *   3. Added session fingerprinting (binds session to user-agent + IP)
- *   4. Added no-cache headers (Back-button after logout now safe)
- *   5. Fixed logout() so it never tries to redirect internally
- *   6. Added explicit cookie params to session_start()
  */
 
-// Prevent multiple inclusions
 if (defined('AUTH_SYSTEM_LOADED')) {
     return;
 }
@@ -23,32 +13,37 @@ define('AUTH_SYSTEM_LOADED', true);
 // SESSION BOOTSTRAP
 // ============================================
 if (session_status() === PHP_SESSION_NONE) {
-    ini_set('session.cookie_httponly', 1);
-    ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_secure', 0);            // set to 1 on HTTPS
-    ini_set('session.gc_maxlifetime', 1800);
+
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+               || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+
+    // These must be set BEFORE session_start()
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.cookie_samesite', 'Strict');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.cookie_secure', $isHttps ? '1' : '0');
+    ini_set('session.gc_maxlifetime', '1800');
 
     session_set_cookie_params([
         'lifetime' => 0,
         'path'     => '/',
         'domain'   => '',
-        'secure'   => false,                         // true on HTTPS
+        'secure'   => $isHttps,
         'httponly' => true,
-        'samesite' => 'Lax',
+        'samesite' => 'Strict',
     ]);
 
     session_start();
 }
 
-// Session timeout configuration (30 minutes)
 if (!defined('SESSION_TIMEOUT')) {
-    define('SESSION_TIMEOUT', 1800);
+    define('SESSION_TIMEOUT', 1800); // 30 min idle
 }
 
 // ============================================
 // SESSION HELPERS
 // ============================================
-
 if (!function_exists('isSessionTimedOut')) {
     function isSessionTimedOut(): bool {
         if (!isset($_SESSION['last_activity'])) return false;
@@ -62,14 +57,23 @@ if (!function_exists('updateLastActivity')) {
     }
 }
 
-// ============================================
-// SESSION DESTRUCTION (no redirect — safe to call anywhere)
-// ============================================
+/**
+ * Build a stable fingerprint.
+ * NOTE: We hash only the User-Agent, not the IP.
+ * IP changes on mobile networks are common and would log users out
+ * mid-session. UA + a rotating session id (via session_regenerate_id)
+ * is the standard mitigation.
+ */
+if (!function_exists('buildFingerprint')) {
+    function buildFingerprint(): string {
+        return hash('sha256', ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
+    }
+}
 
+// ============================================
+// SESSION DESTRUCTION
+// ============================================
 if (!function_exists('destroySession')) {
-    /**
-     * Cleanly destroy session + cookie. Does NOT redirect.
-     */
     function destroySession(): void {
         $_SESSION = [];
 
@@ -93,9 +97,6 @@ if (!function_exists('destroySession')) {
 }
 
 if (!function_exists('logout')) {
-    /**
-     * Backward-compatible alias. Does NOT redirect.
-     */
     function logout(): void {
         destroySession();
     }
@@ -104,24 +105,19 @@ if (!function_exists('logout')) {
 // ============================================
 // LOGIN STATE
 // ============================================
-
 if (!function_exists('isLoggedIn')) {
     function isLoggedIn(): bool {
         if (empty($_SESSION['user_id'])) {
             return false;
         }
 
-        // Verify fingerprint (blocks hijacked/ghost sessions)
-        $fp = hash('sha256',
-            ($_SERVER['HTTP_USER_AGENT'] ?? '') . '|' .
-            ($_SERVER['REMOTE_ADDR']    ?? '')
-        );
-        if (!isset($_SESSION['fingerprint']) || !hash_equals($_SESSION['fingerprint'], $fp)) {
+        // Fingerprint (UA only — see buildFingerprint comment)
+        if (empty($_SESSION['fingerprint'])
+            || !hash_equals($_SESSION['fingerprint'], buildFingerprint())) {
             destroySession();
             return false;
         }
 
-        // Timeout check
         if (isSessionTimedOut()) {
             destroySession();
             return false;
@@ -147,7 +143,6 @@ if (!function_exists('isStaff')) {
 // ============================================
 // ACCESS GUARDS
 // ============================================
-
 if (!function_exists('requireLogin')) {
     function requireLogin(string $redirect = 'index.php'): void {
         if (!isLoggedIn()) {
@@ -162,7 +157,7 @@ if (!function_exists('requireAdmin')) {
     function requireAdmin(string $redirect = 'dashboard.php'): void {
         requireLogin();
         if (!isAdmin()) {
-            error_log('Unauthorized admin access attempt by User ID: ' . getCurrentUserId());
+            error_log('Unauthorized admin access by User ID: ' . getCurrentUserId());
             $_SESSION['error_message'] = 'You do not have permission to access this page.';
             header("Location: {$redirect}");
             exit();
@@ -174,7 +169,7 @@ if (!function_exists('requireStaff')) {
     function requireStaff(string $redirect = 'dashboard.php'): void {
         requireLogin();
         if (!isStaff() && !isAdmin()) {
-            error_log('Unauthorized staff access attempt by User ID: ' . getCurrentUserId());
+            error_log('Unauthorized staff access by User ID: ' . getCurrentUserId());
             $_SESSION['error_message'] = 'You do not have permission to access this page.';
             header("Location: {$redirect}");
             exit();
@@ -185,7 +180,6 @@ if (!function_exists('requireStaff')) {
 // ============================================
 // CURRENT-USER ACCESSORS
 // ============================================
-
 if (!function_exists('getCurrentUserId')) {
     function getCurrentUserId(): int {
         return (int)($_SESSION['user_id'] ?? 0);
@@ -228,7 +222,6 @@ if (!function_exists('getUserInitials')) {
 // ============================================
 // PERMISSIONS
 // ============================================
-
 if (!function_exists('hasPermission')) {
     function hasPermission(string $permission): bool {
         if (!isLoggedIn()) return false;
@@ -244,14 +237,14 @@ if (!function_exists('hasPermission')) {
                 'view_dashboard','manage_folders','manage_files','upload_files','view_reports'
             ]
         ];
-        return isset($permissions[$role]) && in_array($permission, $permissions[$role], true);
+        return isset($permissions[$role])
+            && in_array($permission, $permissions[$role], true);
     }
 }
 
 // ============================================
 // FLASH MESSAGES
 // ============================================
-
 if (!function_exists('setFlashMessage')) {
     function setFlashMessage(string $type, string $message): void {
         $_SESSION['flash_messages'][$type] = $message;
@@ -295,7 +288,6 @@ if (!function_exists('redirectWithMessage')) {
 // ============================================
 // CSRF
 // ============================================
-
 if (!function_exists('generateCSRFToken')) {
     function generateCSRFToken(): string {
         if (empty($_SESSION['csrf_token'])) {
@@ -311,15 +303,29 @@ if (!function_exists('verifyCSRFToken')) {
             && hash_equals($_SESSION['csrf_token'], $token);
     }
 }
+if (!function_exists('csrfField')) {
+    function csrfField(): string {
+        return '<input type="hidden" name="csrf_token" value="'
+             . htmlspecialchars(generateCSRFToken(), ENT_QUOTES, 'UTF-8') . '">';
+    }
+}
+if (!function_exists('requireCSRF')) {
+    function requireCSRF(): void {
+        $sent = $_POST['csrf_token'] ?? '';
+        if (!verifyCSRFToken($sent)) {
+            http_response_code(403);
+            exit('CSRF token mismatch.');
+        }
+    }
+}
 
 // ============================================
 // ACTIVITY LOG
 // ============================================
-
 if (!function_exists('logActivity')) {
     function logActivity(string $action, string $details = ''): void {
         $uid   = getCurrentUserId();
-        $uname = getCurrentUsername();
+        $uname = $_SESSION['username'] ?? 'guest';
         $ip    = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 
         $entry = sprintf(
@@ -328,7 +334,7 @@ if (!function_exists('logActivity')) {
             $uname, $uid, $ip, $action, $details
         );
 
-        $dir = __DIR__ . '/logs';
+        $dir = __DIR__ . '/../logs';
         if (!is_dir($dir)) @mkdir($dir, 0777, true);
         @file_put_contents($dir . '/activity.log', $entry, FILE_APPEND | LOCK_EX);
     }
@@ -337,13 +343,10 @@ if (!function_exists('logActivity')) {
 // ============================================
 // DATABASE HELPERS
 // ============================================
-
 if (!function_exists('isDatabaseConnected')) {
     function isDatabaseConnected(PDO $pdo): bool {
-        try {
-            $pdo->query('SELECT 1');
-            return true;
-        } catch (PDOException $e) {
+        try { $pdo->query('SELECT 1'); return true; }
+        catch (PDOException $e) {
             error_log('Database connection error: ' . $e->getMessage());
             return false;
         }
@@ -351,24 +354,30 @@ if (!function_exists('isDatabaseConnected')) {
 }
 
 if (!function_exists('authenticateUser')) {
-    /**
-     * @return array|null User row on success, null on failure
-     */
     function authenticateUser(PDO $pdo, string $username, string $password): ?array {
         try {
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? AND status = 'active' LIMIT 1");
+            $stmt = $pdo->prepare(
+                "SELECT * FROM users WHERE username = ? AND status = 'active' LIMIT 1"
+            );
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$user) {
-                logActivity('Failed login attempt', "Username: {$username} (not found)");
+                logActivity('Failed login', "Username: {$username} (not found)");
                 return null;
             }
 
-            // Hashed match
             if (password_verify($password, $user['password'])) {
                 $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")
                     ->execute([$user['id']]);
+
+                // Rehash if bcrypt cost has been upgraded
+                if (password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
+                    $new = password_hash($password, PASSWORD_DEFAULT);
+                    $pdo->prepare("UPDATE users SET password = ? WHERE id = ?")
+                        ->execute([$new, $user['id']]);
+                }
+
                 logActivity('User logged in', "Username: {$username}");
                 return $user;
             }
@@ -376,15 +385,13 @@ if (!function_exists('authenticateUser')) {
             // Legacy plaintext migration
             if (hash_equals((string)$user['password'], $password)) {
                 $newHash = password_hash($password, PASSWORD_DEFAULT);
-                $pdo->prepare("UPDATE users SET password = ? WHERE id = ?")
+                $pdo->prepare("UPDATE users SET password = ?, last_login = NOW() WHERE id = ?")
                     ->execute([$newHash, $user['id']]);
-                $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")
-                    ->execute([$user['id']]);
                 logActivity('User logged in (plaintext migrated)', "Username: {$username}");
                 return $user;
             }
 
-            logActivity('Failed login attempt', "Username: {$username} (bad password)");
+            logActivity('Failed login', "Username: {$username} (bad password)");
             return null;
 
         } catch (PDOException $e) {
@@ -404,26 +411,20 @@ if (!function_exists('createUserSession')) {
         $_SESSION['email']         = $user['email'] ?? '';
         $_SESSION['role']          = $user['role'];
         $_SESSION['last_activity'] = time();
-
-        // Fingerprint — binds session to user-agent + IP
-        $_SESSION['fingerprint'] = hash('sha256',
-            ($_SERVER['HTTP_USER_AGENT'] ?? '') . '|' .
-            ($_SERVER['REMOTE_ADDR']    ?? '')
-        );
+        $_SESSION['fingerprint']   = buildFingerprint();
     }
 }
 
 // ============================================
 // AUTH ERROR MESSAGES
 // ============================================
-
 if (!function_exists('getAuthErrorMessage')) {
     function getAuthErrorMessage(string $error): string {
         $messages = [
             'login_required'      => 'Please log in to access this page.',
             'unauthorized'        => 'You do not have permission to access this page.',
             'invalid_credentials' => 'Invalid username or password.',
-            'account_inactive'    => 'Your account is inactive. Please contact administrator.',
+            'account_inactive'    => 'Your account is inactive.',
             'session_expired'     => 'Your session has expired. Please log in again.',
             'system_error'        => 'A system error occurred. Please try again later.',
         ];
@@ -432,9 +433,8 @@ if (!function_exists('getAuthErrorMessage')) {
 }
 
 // ============================================
-// GLOBAL PAGE GUARD (honors AUTH_SKIP_GUARD)
+// GLOBAL PAGE GUARD
 // ============================================
-
 if (!defined('AUTH_SKIP_GUARD') || AUTH_SKIP_GUARD !== true) {
 
     $public_pages = [
@@ -447,14 +447,12 @@ if (!defined('AUTH_SKIP_GUARD') || AUTH_SKIP_GUARD !== true) {
 
     $current_page = basename($_SERVER['PHP_SELF'] ?? '');
 
-    // Not logged in → only public pages allowed
     if (!isLoggedIn() && !in_array($current_page, $public_pages, true)) {
         $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '';
         header('Location: index.php?error=login_required');
         exit();
     }
 
-    // Logged in → don't sit on the login page
     if (isLoggedIn() && $current_page === 'index.php' && !isset($_GET['logout'])) {
         header('Location: dashboard.php');
         exit();
@@ -464,17 +462,12 @@ if (!defined('AUTH_SKIP_GUARD') || AUTH_SKIP_GUARD !== true) {
 // ============================================
 // SECURITY HEADERS
 // ============================================
-
 if (!headers_sent()) {
     header('X-Frame-Options: SAMEORIGIN');
-    header('X-XSS-Protection: 1; mode=block');
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: strict-origin-when-cross-origin');
-
-    // Prevent browser from caching protected pages (Back-button fix)
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=(self)');
     header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-    header('Cache-Control: post-check=0, pre-check=0', false);
     header('Pragma: no-cache');
     header('Expires: Sat, 26 Jul 1997 05:00:00 GMT');
 }
-?>

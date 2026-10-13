@@ -307,9 +307,6 @@ try {
                 <a href="<?php echo $view_url; ?>" target="_blank" class="btn btn-primary">
                     <i class="fas fa-eye"></i> View Document
                 </a>
-                <a href="<?php echo $qr_code_url; ?>" download="USAT_QR_<?php echo $file['id']; ?>.png" class="btn btn-success">
-                    <i class="fas fa-download"></i> Download QR
-                </a>
                 <button onclick="window.print()" class="btn btn-secondary">
                     <i class="fas fa-print"></i> Print
                 </button>

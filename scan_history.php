@@ -255,11 +255,7 @@ include 'includes/header.php';
             </div>
         </div>
 
-        <!-- SLIDE HINT -->
-        <div class="slide-hint">
-            <i class="fas fa-arrows-alt-h"></i>
-            <span>Drag the table left or right to see more columns</span>
-        </div>
+       
 
         <div class="table-responsive" id="slideTable">
             <?php if (empty($scans)): ?>

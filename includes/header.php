@@ -8,6 +8,11 @@ if (!isset($_SESSION['user_id']) && basename($_SERVER['PHP_SELF']) != 'index.php
     header("Location: index.php");
     exit();
 }
+
+$display_name = $_SESSION['full_name'] ?? 'User';
+$role_name = isset($_SESSION['role']) ? ucfirst($_SESSION['role']) : 'Guest';
+$role_is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+$hide_role_text = $role_is_admin && stripos($display_name, 'admin') !== false;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -207,12 +212,13 @@ if (!isset($_SESSION['user_id']) && basename($_SERVER['PHP_SELF']) != 'index.php
             <div class="top-navbar">
                 <div class="user-info">
                     <div class="user-details">
-                        <strong><?php echo isset($_SESSION['full_name']) ? htmlspecialchars($_SESSION['full_name']) : 'User'; ?></strong>
+                        <strong><?php echo htmlspecialchars($display_name); ?></strong>
                         <small>
-                            <i class="fas fa-<?php echo (isset($_SESSION['role']) && $_SESSION['role'] == 'admin') ? 'shield-alt' : 'user'; ?>"></i>
-                            <?php echo isset($_SESSION['role']) ? ucfirst($_SESSION['role']) : 'Guest'; ?>
-                            <?php if(isset($_SESSION['role']) && $_SESSION['role'] == 'admin'): ?>
+                            <i class="fas fa-<?php echo $role_is_admin ? 'shield-alt' : 'user'; ?>"></i>
+                            <?php if($role_is_admin && !$hide_role_text): ?>
                                 <span class="role-badge">Admin</span>
+                            <?php elseif(!$hide_role_text): ?>
+                                <?php echo htmlspecialchars($role_name); ?>
                             <?php endif; ?>
                         </small>
                     </div>

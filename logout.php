@@ -1,58 +1,32 @@
 <?php
 /**
- * Logout handler
- * USAT College Archiving System
- *
- * - Prevents browser from caching this page
- * - Destroys session and cookie cleanly
- * - Redirects to login page
+ * Logout handler — USAT College Archiving System
  */
 
-// ============================================
-// NO-CACHE HEADERS (must be before any output)
-// ============================================
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
-header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: Sat, 26 Jul 1997 05:00:00 GMT');
 
-// ============================================
-// START SESSION (needed to read existing session)
-// ============================================
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+// Bypass page guard so this runs even if the session is already dead
+define('AUTH_SKIP_GUARD', true);
+
+require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/auth.php';
+
+// Log the logout before we destroy the session
+if (!empty($_SESSION['user_id'])) {
+    try {
+        logActivity('User logged out', 'Username: ' . ($_SESSION['username'] ?? ''));
+    } catch (Throwable $e) {
+        error_log('Logout log error: ' . $e->getMessage());
+    }
 }
 
-// ============================================
-// CLEAR ALL SESSION DATA
-// ============================================
-$_SESSION = [];
+// Full teardown (clears array, expires cookie, destroys session)
+destroySession();
 
-// ============================================
-// DELETE SESSION COOKIE
-// ============================================
-if (ini_get("session.use_cookies")) {
-    $params = session_get_cookie_params();
-    setcookie(
-        session_name(),
-        '',
-        time() - 42000,
-        $params["path"]     ?? '/',
-        $params["domain"]   ?? '',
-        $params["secure"]   ?? false,
-        $params["httponly"] ?? true
-    );
-}
+// Tell the browser to wipe any cached authenticated pages
+header('Clear-Site-Data: "cache", "cookies", "storage"', false);
 
-// ============================================
-// DESTROY SESSION
-// ============================================
-session_unset();
-session_destroy();
-
-// ============================================
-// REDIRECT TO LOGIN
-// ============================================
-header("Location: index.php?logout=1");
-exit();
-?>
+header('Location: index.php?logout=1');
+exit;

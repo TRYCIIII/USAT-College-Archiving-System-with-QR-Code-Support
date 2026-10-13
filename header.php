@@ -4,6 +4,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+$display_name = $_SESSION['full_name'] ?? 'User';
+$role_name = isset($_SESSION['role']) ? ucfirst($_SESSION['role']) : 'Guest';
+$role_is_admin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+$hide_role_text = $role_is_admin && stripos($display_name, 'admin') !== false;
+
 // Include database connection
 require_once __DIR__ . '/../config/database.php';
 
@@ -584,11 +589,6 @@ if (isset($_GET['scan_result']) && !empty($_GET['scan_result'])) {
                     </li>
                     
                     <?php if(isAdmin()): ?>
-                    <!-- Admin Dropdown -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-cog"></i> Admin
-                        </a>
                         <ul class="dropdown-menu" aria-labelledby="adminDropdown">
                             <li><a class="dropdown-item" href="manage_users.php"><i class="fas fa-users-cog"></i> Manage Users</a></li>
                             <li><a class="dropdown-item" href="activity_log.php"><i class="fas fa-history"></i> Activity Log</a></li>
@@ -614,8 +614,10 @@ if (isset($_GET['scan_result']) && !empty($_GET['scan_result'])) {
                                     <?php echo strtoupper(substr($_SESSION['full_name'] ?? 'U', 0, 1)); ?>
                                 </div>
                                 <div>
-                                    <div class="user-name"><?php echo htmlspecialchars($_SESSION['full_name'] ?? 'User'); ?></div>
-                                    <div class="user-role"><?php echo ucfirst($_SESSION['role'] ?? 'staff'); ?></div>
+                                    <div class="user-name"><?php echo htmlspecialchars($display_name); ?></div>
+                                    <?php if (!$hide_role_text): ?>
+                                        <div class="user-role"><?php echo htmlspecialchars($role_name); ?></div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </a>

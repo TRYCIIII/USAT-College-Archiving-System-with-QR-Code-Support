@@ -52,7 +52,7 @@ if (!function_exists('getFileColor')) {
 }
 
 // ============================================
-// DETECT SCHEMA (does status column exist?)
+// DETECT SCHEMA
 // ============================================
 function column_exists(PDO $pdo, string $table, string $column): bool {
     try {
@@ -71,7 +71,6 @@ $filesHasStatus   = column_exists($pdo, 'files', 'status');
 $foldersHasStatus = column_exists($pdo, 'folders', 'status');
 $foldersHasCreatedBy = column_exists($pdo, 'folders', 'created_by');
 
-// Helper fragments for queries
 $filesActiveClause   = $filesHasStatus   ? "(status = 'active' OR status IS NULL)"     : "1=1";
 $filesArchivedClause = $filesHasStatus   ? "status = 'archived'"                        : "1=0";
 $foldersActiveClause = $foldersHasStatus ? "(status = 'active' OR status IS NULL)"     : "1=1";
@@ -95,7 +94,6 @@ if (isAdmin()) {
         $total_files   = (int)$pdo->query("SELECT COUNT(*) FROM files WHERE $filesActiveClause")->fetchColumn();
         $total_folders = (int)$pdo->query("SELECT COUNT(*) FROM folders WHERE $foldersActiveClause")->fetchColumn();
 
-        // Staff count only if users table has the right columns
         try {
             $total_staff = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'staff' AND status = 'active'")->fetchColumn();
         } catch (PDOException $e) {
@@ -136,7 +134,6 @@ if (isAdmin()) {
 
         $yearly_files = (int)$pdo->query("SELECT COUNT(*) FROM files WHERE YEAR(created_at) = YEAR(NOW())")->fetchColumn();
 
-        // Growth calculation using proper MySQL date arithmetic
         $growth_data = $pdo->query("
             SELECT
                 COUNT(CASE WHEN MONTH(created_at) = MONTH(CURDATE() - INTERVAL 1 MONTH)
@@ -162,7 +159,6 @@ if (isAdmin()) {
         error_log("Dashboard admin stats error: " . $e->getMessage());
     }
 } else {
-    // Staff view — scope to their own uploads
     $user_id = getCurrentUserId();
 
     try {
@@ -408,6 +404,129 @@ html, body {
     margin-top: 3px;
 }
 
+/* ---------- DO NUT CARD ---------- */
+.donut-card {
+    background: white;
+    border-radius: 14px;
+    padding: 15px 14px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    position: relative;
+    overflow: hidden;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.donut-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.donut-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.donut-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #f0f0f0;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.donut-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.donut-title i {
+    width: 28px;
+    height: 28px;
+    background: var(--primary-gradient);
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.donut-badge {
+    background: #f0f2f5;
+    color: #2c3e50;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.donut-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 130px;
+    position: relative;
+    padding-top: 4px;
+}
+
+.donut-wrapper canvas {
+    max-width: 100%;
+    max-height: 140px;
+}
+
+/* Custom legend under the donut */
+.donut-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    justify-content: center;
+    padding: 4px 2px 0;
+    margin-top: 4px;
+}
+
+.donut-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: #2c3e50;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.donut-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+.donut-legend-pct {
+    font-weight: 700;
+    color: #667eea;
+    margin-left: 2px;
+}
+
 .quick-actions {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -479,6 +598,7 @@ html, body {
     box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     width: 100%;
     box-sizing: border-box;
+    height: 100%;
 }
 
 .chart-header {
@@ -607,6 +727,12 @@ html, body {
     .chart-title { font-size: 13px; }
     .chart-title i { width: 24px; height: 24px; font-size: 11px; }
     .chart-wrapper { height: 180px; }
+    .donut-card { padding: 10px; min-height: 70px; border-radius: 10px; }
+    .donut-title { font-size: 12px; }
+    .donut-title i { width: 24px; height: 24px; font-size: 11px; }
+    .donut-wrapper { min-height: 110px; }
+    .donut-wrapper canvas { max-height: 110px; }
+    .donut-legend-item { font-size: 9px; }
 
     .recent-table { border-radius: 10px; }
     .recent-table .table thead { display: none; }
@@ -699,7 +825,8 @@ img, svg, canvas, video, iframe { max-width: 100%; height: auto; }
     <div class="welcome-banner fade-up">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <h2><i class="fas fa-graduation-cap"></i> <?php echo $greeting; ?>, <?php echo htmlspecialchars($user_full_name); ?>!</h2>
+                <!-- ===== UPDATED: admin name removed ===== -->
+                <h2><i class="fas fa-graduation-cap"></i> <?php echo $greeting; ?>!</h2>
                 <p>Welcome to USAT College Archiving System. Here's your dashboard overview.</p>
                 <div class="greeting-time">
                     <i class="fas fa-calendar-alt"></i> <?php echo date('l, F j, Y'); ?> &nbsp;|&nbsp;
@@ -714,7 +841,7 @@ img, svg, canvas, video, iframe { max-width: 100%; height: auto; }
         </div>
     </div>
 
-    <!-- Statistics Cards -->
+    <!-- Statistics Cards + Do Nut -->
     <div class="stats-grid">
         <div class="stat-card-premium blue fade-up" onclick="window.location.href='files.php'">
             <div class="stat-header">
@@ -765,6 +892,23 @@ img, svg, canvas, video, iframe { max-width: 100%; height: auto; }
             <small><i class="fas fa-user-check"></i> Active users</small>
         </div>
         <?php endif; ?>
+
+        <!-- DO NUT CARD with % labels -->
+        <?php if(count($service_stats) > 0): ?>
+        <div class="donut-card fade-up">
+            <div class="donut-header">
+                <div class="donut-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Service Mix
+                </div>
+                <span class="donut-badge"><i class="fas fa-percent"></i> By Share</span>
+            </div>
+            <div class="donut-wrapper">
+                <canvas id="doNutChart"></canvas>
+            </div>
+            <div class="donut-legend" id="doNutLegend"></div>
+        </div>
+        <?php endif; ?>
     </div>
 
     <!-- Quick Actions -->
@@ -803,7 +947,21 @@ img, svg, canvas, video, iframe { max-width: 100%; height: auto; }
                 </div>
             </div>
         </div>
-        
+        <div class="col-12 col-lg-5">
+            <div class="chart-container fade-up">
+                <div class="chart-header">
+                    <div class="chart-title">
+                        <i class="fas fa-chart-pie"></i>
+                        Service Distribution
+                    </div>
+                    <span class="badge bg-success">By %</span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="serviceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Recent Documents Table -->
     <div class="recent-table fade-up">
@@ -869,6 +1027,7 @@ img, svg, canvas, video, iframe { max-width: 100%; height: auto; }
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
 // Live Clock
 function updateClock() {
@@ -880,7 +1039,7 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// Intersection Observer for scroll animations
+// Intersection Observer
 const observerOptions = { threshold: 0.1, rootMargin: '0px 0px -50px 0px' };
 const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -889,14 +1048,25 @@ const observer = new IntersectionObserver((entries) => {
 }, observerOptions);
 document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 
-// Open upload modal when clicking "Upload Document" from dashboard
+// Upload redirect
 function openUploadFromDashboard(e) {
-    // Navigate to files.php and auto-open the upload modal
     e.preventDefault();
     window.location.href = 'files.php?open_upload=1';
 }
 
-// Charts — guard against missing canvas elements
+// ============================================
+// SHARED: percentage formatter
+// ============================================
+function formatPercent(value, total) {
+    if (!total) return '0%';
+    return ((value / total) * 100).toFixed(1).replace(/\.0$/, '') + '%';
+}
+
+// ============================================
+// CHARTS
+// ============================================
+
+// ---- Line Chart ----
 <?php if(count($monthly_stats) > 0): ?>
 (function() {
     const el = document.getElementById('trendChart');
@@ -940,12 +1110,14 @@ function openUploadFromDashboard(e) {
 })();
 <?php endif; ?>
 
+// ---- Big Service Donut (with % labels) ----
 <?php if(count($service_stats) > 0): ?>
 (function() {
     const el = document.getElementById('serviceChart');
     if (!el) return;
     const serviceLabels = <?php echo json_encode(array_column($service_stats, 'type_of_community_service')); ?>;
     const serviceData = <?php echo json_encode(array_map('intval', array_column($service_stats, 'count'))); ?>;
+    const total = serviceData.reduce((a, b) => a + b, 0);
 
     new Chart(el.getContext('2d'), {
         type: 'doughnut',
@@ -954,7 +1126,8 @@ function openUploadFromDashboard(e) {
             datasets: [{
                 data: serviceData,
                 backgroundColor: ['#3498db', '#e74c3c', '#f39c12', '#27ae60', '#9b59b6', '#1abc9c', '#e67e22', '#2ecc71'],
-                borderWidth: 0,
+                borderWidth: 2,
+                borderColor: '#fff',
                 hoverOffset: 10
             }]
         },
@@ -965,13 +1138,105 @@ function openUploadFromDashboard(e) {
                 legend: { position: 'bottom', labels: { font: { size: 9, weight: 'bold' }, usePointStyle: true, padding: 8 } },
                 tooltip: {
                     backgroundColor: '#2c3e50',
-                    callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} documents` }
+                    callbacks: {
+                        label: (ctx) => {
+                            const val = ctx.raw;
+                            const pct = formatPercent(val, total);
+                            return ` ${ctx.label}: ${val} (${pct})`;
+                        }
+                    }
+                },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: (value, ctx) => {
+                        const pct = formatPercent(value, total);
+                        return pct;
+                    },
+                    display: (ctx) => {
+                        // Hide tiny slices (< 5%) to avoid overlap
+                        const pct = (ctx.dataset.data[ctx.dataIndex] / total) * 100;
+                        return pct >= 5;
+                    }
                 }
             },
             cutout: '55%',
             animation: { animateScale: true, animateRotate: true }
-        }
+        },
+        plugins: [ChartDataLabels]
     });
+})();
+<?php endif; ?>
+
+// ---- Compact Do Nut (with % labels + custom legend) ----
+<?php if(count($service_stats) > 0): ?>
+(function() {
+    const el = document.getElementById('doNutChart');
+    if (!el) return;
+    const serviceLabels = <?php echo json_encode(array_column($service_stats, 'type_of_community_service')); ?>;
+    const serviceData = <?php echo json_encode(array_map('intval', array_column($service_stats, 'count'))); ?>;
+    const colors = ['#3498db', '#e74c3c', '#f39c12', '#27ae60', '#9b59b6'];
+    const total = serviceData.reduce((a, b) => a + b, 0);
+
+    // Render the % inside each slice
+    new Chart(el.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: serviceLabels,
+            datasets: [{
+                data: serviceData,
+                backgroundColor: colors,
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: 4 },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#2c3e50',
+                    callbacks: {
+                        label: (ctx) => {
+                            const val = ctx.raw;
+                            const pct = formatPercent(val, total);
+                            return ` ${ctx.label}: ${val} (${pct})`;
+                        }
+                    }
+                },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: (value) => formatPercent(value, total),
+                    display: (ctx) => {
+                        const pct = (ctx.dataset.data[ctx.dataIndex] / total) * 100;
+                        return pct >= 8; // hide very small slices to keep it readable
+                    },
+                    textShadowColor: 'rgba(0,0,0,0.35)',
+                    textShadowBlur: 3
+                }
+            },
+            cutout: '60%',
+            animation: { animateScale: true, animateRotate: true }
+        },
+        plugins: [ChartDataLabels]
+    });
+
+    // Build custom legend with % next to each label
+    const legendEl = document.getElementById('doNutLegend');
+    if (legendEl) {
+        legendEl.innerHTML = serviceLabels.map((label, i) => {
+            const val = serviceData[i];
+            const pct = formatPercent(val, total);
+            return `<span class="donut-legend-item">
+                        <span class="donut-legend-dot" style="background:${colors[i % colors.length]};"></span>
+                        ${label} <span class="donut-legend-pct">${pct}</span>
+                    </span>`;
+        }).join('');
+    }
 })();
 <?php endif; ?>
 
