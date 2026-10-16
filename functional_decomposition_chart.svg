@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500">
+  <style>
+    .title { font: bold 20px Arial, Helvetica, sans-serif; }
+    .node-title { font: bold 14px Arial, Helvetica, sans-serif; }
+    .node-text { font: 12px Arial, Helvetica, sans-serif; }
+    .box { fill: #f7f9fc; stroke: #2b6cb0; stroke-width:1.5; rx:8; }
+    .connector { stroke: #4a5568; stroke-width:1.2; }
+  </style>
+
+  <rect x="10" y="10" width="1180" height="70" rx="10" fill="#2b6cb0" />
+  <text x="600" y="54" text-anchor="middle" fill="#fff" class="title">USAT College Archiving System — Functional Decomposition</text>
+
+  <!-- Column layout: two columns, stacked -->
+
+  <!-- Column left x = 40, column right x = 640 -->
+  <!-- Each box height 120, spacing 20 -->
+
+  <!-- 1. Authentication & User Management -->
+  <g transform="translate(40,110)">
+    <rect class="box" width="540" height="120" />
+    <text x="18" y="30" class="node-title">1. Authentication & User Management</text>
+    <text x="18" y="54" class="node-text">index.php · login_process.php · check_login.php</text>
+    <text x="18" y="72" class="node-text">forgot_password.php · reset_password.php · manage_users.php</text>
+  </g>
+
+  <!-- 2. Document Management -->
+  <g transform="translate(640,110)">
+    <rect class="box" width="520" height="120" />
+    <text x="18" y="30" class="node-title">2. Document Management (CRUD & Archiving)</text>
+    <text x="18" y="54" class="node-text">add_document.php · update_document.php · view_document.php</text>
+    <text x="18" y="72" class="node-text">trash_bin.php · archive_document.php · restore_document.php</text>
+  </g>
+
+  <!-- 3. File / Folder Storage & Upload Handling -->
+  <g transform="translate(40,260)">
+    <rect class="box" width="540" height="120" />
+    <text x="18" y="30" class="node-title">3. File & Folder Storage / Uploads</text>
+    <text x="18" y="54" class="node-text">upload_file.php · process_upload.php · serve_file.php</text>
+    <text x="18" y="72" class="node-text">create_folder.php · delete_file.php · uploads/ · file_uploads/</text>
+  </g>
+
+  <!-- 4. QR Code Generation & Management -->
+  <g transform="translate(640,260)">
+    <rect class="box" width="520" height="120" />
+    <text x="18" y="30" class="node-title">4. QR Code Generation & Management</text>
+    <text x="18" y="54" class="node-text">generate_qr.php · generate_document_qr.php</text>
+    <text x="18" y="72" class="node-text">get_qr.php · download_qr.php · qrcodes/</text>
+  </g>
+
+  <!-- 5. Reporting, Activity & Audit Trail -->
+  <g transform="translate(40,410)">
+    <rect class="box" width="540" height="100" />
+    <text x="18" y="30" class="node-title">5. Reporting & Audit</text>
+    <text x="18" y="54" class="node-text">activity_log.php · scan_history.php · reports.php · logs/</text>
+  </g>
+
+  <!-- 6. Admin Tools & Maintenance -->
+  <g transform="translate(640,410)">
+    <rect class="box" width="520" height="100" />
+    <text x="18" y="30" class="node-title">6. Admin Tools & Maintenance</text>
+    <text x="18" y="54" class="node-text">manage_users.php · admin_trash_bin.php · fix_database.php</text>
+  </g>
+
+  <!-- 7. API & Integration -->
+  <g transform="translate(40,540)">
+    <rect class="box" width="540" height="90" />
+    <text x="18" y="30" class="node-title">7. API & Integration</text>
+    <text x="18" y="54" class="node-text">api/ · get_qr.php · get_document_for_print.php</text>
+  </g>
+
+  <!-- 8. Installation & Database -->
+  <g transform="translate(640,540)">
+    <rect class="box" width="520" height="90" />
+    <text x="18" y="30" class="node-title">8. Installation & Database</text>
+    <text x="18" y="54" class="node-text">install.php · install_database.php · usat_archiving.sql</text>
+  </g>
+
+  <!-- 9. Shared Configuration & Includes -->
+  <g transform="translate(40,650)">
+    <rect class="box" width="540" height="80" />
+    <text x="18" y="28" class="node-title">9. Configuration & Includes</text>
+    <text x="18" y="50" class="node-text">config/ · includes/ · header.php</text>
+  </g>
+
+  <!-- 10. Frontend / Static Assets -->
+  <g transform="translate(640,650)">
+    <rect class="box" width="520" height="80" />
+    <text x="18" y="28" class="node-title">10. Frontend / Static Assets</text>
+    <text x="18" y="50" class="node-text">assets/ · logo.jpg · bg.png · CSS/JS files</text>
+  </g>
+
+  <!-- 11. Misc Utilities & Helpers -->
+  <g transform="translate(40,750)">
+    <rect class="box" width="1120" height="80" />
+    <text x="18" y="28" class="node-title">11. Misc Utilities & Helpers</text>
+    <text x="18" y="50" class="node-text">get_counts.php · export_logs.php · upload_debug.log · error.log</text>
+  </g>
+
+  <!-- Footer note -->
+  <text x="600" y="1420" text-anchor="middle" class="node-text">Generated from repository TRYCIIII/USAT-College-Archiving-System-with-QR-Code-Support on 2026-10-16</text>
+</svg>
