@@ -233,6 +233,9 @@ if ($current_hour < 12) {
 
 $user_full_name = $_SESSION['full_name'] ?? $_SESSION['username'] ?? 'User';
 
+// Number of stat cards (admin sees 5, staff sees 4)
+$stat_cols = isAdmin() ? 5 : 4;
+
 include 'includes/header.php';
 ?>
 
@@ -304,11 +307,27 @@ html, body {
     color: white;
 }
 
+/* =====================================================
+   FIXED STATS BAR (top of dashboard)
+   - Always one row on desktop, fixed column positions
+   - Stays pinned at the top while scrolling (desktop/tablet)
+   - To disable pinning: delete the "position: sticky" block
+   ===================================================== */
+.stats-fixed-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 8px 0 10px;
+    margin-bottom: 12px;
+    background: rgba(244, 246, 251, 0.96);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(var(--stat-cols, 5), minmax(0, 1fr));
     gap: 15px;
-    margin-bottom: 20px;
     width: 100%;
 }
 
@@ -322,6 +341,7 @@ html, body {
     overflow: hidden;
     cursor: pointer;
     min-height: 90px;
+    min-width: 0;
 }
 
 .stat-card-premium:hover {
@@ -402,129 +422,6 @@ html, body {
     opacity: 0.7;
     display: block;
     margin-top: 3px;
-}
-
-/* ---------- DO NUT CARD ---------- */
-.donut-card {
-    background: white;
-    border-radius: 14px;
-    padding: 15px 14px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
-    position: relative;
-    overflow: hidden;
-    min-height: 90px;
-    display: flex;
-    flex-direction: column;
-    transition: all 0.3s ease;
-}
-
-.donut-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-}
-
-.donut-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background: linear-gradient(90deg, #667eea, #764ba2);
-}
-
-.donut-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-    padding-bottom: 6px;
-    border-bottom: 2px solid #f0f0f0;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.donut-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #2c3e50;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.donut-title i {
-    width: 28px;
-    height: 28px;
-    background: var(--primary-gradient);
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 13px;
-    flex-shrink: 0;
-}
-
-.donut-badge {
-    background: #f0f2f5;
-    color: #2c3e50;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 30px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.donut-wrapper {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 130px;
-    position: relative;
-    padding-top: 4px;
-}
-
-.donut-wrapper canvas {
-    max-width: 100%;
-    max-height: 140px;
-}
-
-/* Custom legend under the donut */
-.donut-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 10px;
-    justify-content: center;
-    padding: 4px 2px 0;
-    margin-top: 4px;
-}
-
-.donut-legend-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    color: #2c3e50;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.donut-legend-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    display: inline-block;
-}
-
-.donut-legend-pct {
-    font-weight: 700;
-    color: #667eea;
-    margin-left: 2px;
 }
 
 .quick-actions {
@@ -696,29 +593,33 @@ html, body {
     transform: translateY(0);
 }
 
+/* ---------- Tablet ---------- */
 @media (max-width: 992px) {
     .main-content { padding: 12px 15px; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    .stat-card-premium { padding: 12px; min-height: 80px; }
+    .stats-grid { gap: 10px; }
+    .stat-card-premium { padding: 10px; min-height: 80px; }
     .stat-value { font-size: 20px; }
+    .stat-icon { width: 32px; height: 32px; font-size: 14px; }
+    .stat-label { font-size: 11px; }
+    .stat-trend { font-size: 9px; padding: 2px 6px; }
+    .stat-card-premium small { font-size: 9px; }
     .quick-actions { grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .quick-action-btn { min-height: 60px; padding: 10px 8px; }
     .quick-action-btn i { font-size: 18px; }
 }
 
+/* ---------- Mobile: 2 columns, no pinning (saves screen space) ---------- */
 @media (max-width: 768px) {
     .main-content { padding: 10px 12px; }
+    .stats-fixed-wrap { position: static; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 0; }
+    .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .welcome-banner { padding: 15px; border-radius: 12px; }
     .welcome-banner h2 { font-size: 17px; }
     .welcome-banner p { font-size: 12px; }
     .greeting-time { font-size: 11px; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .stat-card-premium { padding: 10px; min-height: 70px; border-radius: 10px; }
     .stat-value { font-size: 18px; }
-    .stat-icon { width: 32px; height: 32px; font-size: 14px; }
     .stat-label { font-size: 11px; }
-    .stat-trend { font-size: 9px; padding: 2px 6px; }
-    .stat-card-premium small { font-size: 9px; }
     .quick-actions { grid-template-columns: repeat(2, 1fr); gap: 8px; }
     .quick-action-btn { min-height: 55px; padding: 8px 6px; border-radius: 10px; }
     .quick-action-btn i { font-size: 16px; margin-bottom: 3px; }
@@ -727,12 +628,6 @@ html, body {
     .chart-title { font-size: 13px; }
     .chart-title i { width: 24px; height: 24px; font-size: 11px; }
     .chart-wrapper { height: 180px; }
-    .donut-card { padding: 10px; min-height: 70px; border-radius: 10px; }
-    .donut-title { font-size: 12px; }
-    .donut-title i { width: 24px; height: 24px; font-size: 11px; }
-    .donut-wrapper { min-height: 110px; }
-    .donut-wrapper canvas { max-height: 110px; }
-    .donut-legend-item { font-size: 9px; }
 
     .recent-table { border-radius: 10px; }
     .recent-table .table thead { display: none; }
@@ -764,7 +659,7 @@ html, body {
 
 @media (max-width: 480px) {
     .main-content { padding: 8px 10px; }
-    .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stats-grid { gap: 8px; }
     .stat-card-premium { padding: 8px; min-height: 60px; border-radius: 8px; }
     .stat-value { font-size: 16px; }
     .stat-icon { width: 28px; height: 28px; font-size: 12px; border-radius: 8px; }
@@ -788,7 +683,7 @@ html, body {
 }
 
 @media (max-width: 360px) {
-    .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .stats-grid { gap: 6px; }
     .stat-card-premium { padding: 6px; min-height: 50px; }
     .stat-value { font-size: 14px; }
     .stat-icon { width: 24px; height: 24px; font-size: 10px; }
@@ -825,7 +720,6 @@ img, svg, canvas, video, iframe { max-width: 100%; height: auto; }
     <div class="welcome-banner fade-up">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <!-- ===== UPDATED: admin name removed ===== -->
                 <h2><i class="fas fa-graduation-cap"></i> <?php echo $greeting; ?>!</h2>
                 <p>Welcome to USAT College Archiving System. Here's your dashboard overview.</p>
                 <div class="greeting-time">
@@ -841,74 +735,59 @@ img, svg, canvas, video, iframe { max-width: 100%; height: auto; }
         </div>
     </div>
 
-    <!-- Statistics Cards + Do Nut -->
-    <div class="stats-grid">
-        <div class="stat-card-premium blue fade-up" onclick="window.location.href='files.php'">
-            <div class="stat-header">
-                <div class="stat-icon blue"><i class="fas fa-file-alt"></i></div>
-                <div class="stat-trend <?php echo $growth_percentage >= 0 ? 'trend-up' : 'trend-down'; ?>">
-                    <i class="fas fa-arrow-<?php echo $growth_percentage >= 0 ? 'up' : 'down'; ?>"></i> <?php echo abs($growth_percentage); ?>%
+    <!-- FIXED STATS BAR: Total Documents, Total Folders, Archived Records, Total Beneficiaries, Staff Members -->
+    <div class="stats-fixed-wrap">
+        <div class="stats-grid" style="--stat-cols: <?php echo (int)$stat_cols; ?>;">
+            <div class="stat-card-premium blue fade-up" onclick="window.location.href='files.php'">
+                <div class="stat-header">
+                    <div class="stat-icon blue"><i class="fas fa-file-alt"></i></div>
+                    <div class="stat-trend <?php echo $growth_percentage >= 0 ? 'trend-up' : 'trend-down'; ?>">
+                        <i class="fas fa-arrow-<?php echo $growth_percentage >= 0 ? 'up' : 'down'; ?>"></i> <?php echo abs($growth_percentage); ?>%
+                    </div>
                 </div>
+                <div class="stat-value"><?php echo number_format((int)$total_files); ?></div>
+                <div class="stat-label">Total Documents</div>
+                <small><i class="fas fa-calendar"></i> <?php echo number_format((int)$yearly_files); ?> added</small>
             </div>
-            <div class="stat-value"><?php echo number_format((int)$total_files); ?></div>
-            <div class="stat-label">Total Documents</div>
-            <small><i class="fas fa-calendar"></i> <?php echo number_format((int)$yearly_files); ?> added</small>
-        </div>
 
-        <div class="stat-card-premium orange fade-up" onclick="window.location.href='files.php'">
-            <div class="stat-header">
-                <div class="stat-icon orange"><i class="fas fa-folder"></i></div>
-            </div>
-            <div class="stat-value"><?php echo number_format((int)$total_folders); ?></div>
-            <div class="stat-label">Total Folders</div>
-            <small><i class="fas fa-folder-open"></i> Organized storage</small>
-        </div>
-
-        <div class="stat-card-premium green fade-up" onclick="window.location.href='files.php?show_archived=1'">
-            <div class="stat-header">
-                <div class="stat-icon green"><i class="fas fa-archive"></i></div>
-            </div>
-            <div class="stat-value"><?php echo number_format((int)$archived); ?></div>
-            <div class="stat-label">Archived Records</div>
-            <small><i class="fas fa-database"></i> Safe storage</small>
-        </div>
-
-        <div class="stat-card-premium purple fade-up" onclick="window.location.href='reports.php'">
-            <div class="stat-header">
-                <div class="stat-icon purple"><i class="fas fa-users"></i></div>
-            </div>
-            <div class="stat-value"><?php echo number_format((int)$total_beneficiaries); ?></div>
-            <div class="stat-label">Total Beneficiaries</div>
-            <small><i class="fas fa-hand-holding-heart"></i> People served</small>
-        </div>
-
-        <?php if(isAdmin()): ?>
-        <div class="stat-card-premium red fade-up" onclick="window.location.href='manage_users.php'">
-            <div class="stat-header">
-                <div class="stat-icon red"><i class="fas fa-users-cog"></i></div>
-            </div>
-            <div class="stat-value"><?php echo number_format((int)$total_staff); ?></div>
-            <div class="stat-label">Staff Members</div>
-            <small><i class="fas fa-user-check"></i> Active users</small>
-        </div>
-        <?php endif; ?>
-
-        <!-- DO NUT CARD with % labels -->
-        <?php if(count($service_stats) > 0): ?>
-        <div class="donut-card fade-up">
-            <div class="donut-header">
-                <div class="donut-title">
-                    <i class="fas fa-chart-pie"></i>
-                    Service Mix
+            <div class="stat-card-premium orange fade-up" onclick="window.location.href='files.php'">
+                <div class="stat-header">
+                    <div class="stat-icon orange"><i class="fas fa-folder"></i></div>
                 </div>
-                <span class="donut-badge"><i class="fas fa-percent"></i> By Share</span>
+                <div class="stat-value"><?php echo number_format((int)$total_folders); ?></div>
+                <div class="stat-label">Total Folders</div>
+                <small><i class="fas fa-folder-open"></i> Organized storage</small>
             </div>
-            <div class="donut-wrapper">
-                <canvas id="doNutChart"></canvas>
+
+            <div class="stat-card-premium green fade-up" onclick="window.location.href='files.php?show_archived=1'">
+                <div class="stat-header">
+                    <div class="stat-icon green"><i class="fas fa-archive"></i></div>
+                </div>
+                <div class="stat-value"><?php echo number_format((int)$archived); ?></div>
+                <div class="stat-label">Archived Records</div>
+                <small><i class="fas fa-database"></i> Safe storage</small>
             </div>
-            <div class="donut-legend" id="doNutLegend"></div>
+
+            <div class="stat-card-premium purple fade-up" onclick="window.location.href='reports.php'">
+                <div class="stat-header">
+                    <div class="stat-icon purple"><i class="fas fa-users"></i></div>
+                </div>
+                <div class="stat-value"><?php echo number_format((int)$total_beneficiaries); ?></div>
+                <div class="stat-label">Total Beneficiaries</div>
+                <small><i class="fas fa-hand-holding-heart"></i> People served</small>
+            </div>
+
+            <?php if(isAdmin()): ?>
+            <div class="stat-card-premium red fade-up" onclick="window.location.href='manage_users.php'">
+                <div class="stat-header">
+                    <div class="stat-icon red"><i class="fas fa-users-cog"></i></div>
+                </div>
+                <div class="stat-value"><?php echo number_format((int)$total_staff); ?></div>
+                <div class="stat-label">Staff Members</div>
+                <small><i class="fas fa-user-check"></i> Active users</small>
+            </div>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
     </div>
 
     <!-- Quick Actions -->
@@ -1054,9 +933,7 @@ function openUploadFromDashboard(e) {
     window.location.href = 'files.php?open_upload=1';
 }
 
-// ============================================
-// SHARED: percentage formatter
-// ============================================
+// Percentage formatter
 function formatPercent(value, total) {
     if (!total) return '0%';
     return ((value / total) * 100).toFixed(1).replace(/\.0$/, '') + '%';
@@ -1110,7 +987,7 @@ function formatPercent(value, total) {
 })();
 <?php endif; ?>
 
-// ---- Big Service Donut (with % labels) ----
+// ---- Service Distribution Donut (with % labels) ----
 <?php if(count($service_stats) > 0): ?>
 (function() {
     const el = document.getElementById('serviceChart');
@@ -1149,10 +1026,7 @@ function formatPercent(value, total) {
                 datalabels: {
                     color: '#fff',
                     font: { weight: 'bold', size: 10 },
-                    formatter: (value, ctx) => {
-                        const pct = formatPercent(value, total);
-                        return pct;
-                    },
+                    formatter: (value) => formatPercent(value, total),
                     display: (ctx) => {
                         // Hide tiny slices (< 5%) to avoid overlap
                         const pct = (ctx.dataset.data[ctx.dataIndex] / total) * 100;
@@ -1165,78 +1039,6 @@ function formatPercent(value, total) {
         },
         plugins: [ChartDataLabels]
     });
-})();
-<?php endif; ?>
-
-// ---- Compact Do Nut (with % labels + custom legend) ----
-<?php if(count($service_stats) > 0): ?>
-(function() {
-    const el = document.getElementById('doNutChart');
-    if (!el) return;
-    const serviceLabels = <?php echo json_encode(array_column($service_stats, 'type_of_community_service')); ?>;
-    const serviceData = <?php echo json_encode(array_map('intval', array_column($service_stats, 'count'))); ?>;
-    const colors = ['#3498db', '#e74c3c', '#f39c12', '#27ae60', '#9b59b6'];
-    const total = serviceData.reduce((a, b) => a + b, 0);
-
-    // Render the % inside each slice
-    new Chart(el.getContext('2d'), {
-        type: 'doughnut',
-        data: {
-            labels: serviceLabels,
-            datasets: [{
-                data: serviceData,
-                backgroundColor: colors,
-                borderWidth: 2,
-                borderColor: '#fff',
-                hoverOffset: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: { padding: 4 },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#2c3e50',
-                    callbacks: {
-                        label: (ctx) => {
-                            const val = ctx.raw;
-                            const pct = formatPercent(val, total);
-                            return ` ${ctx.label}: ${val} (${pct})`;
-                        }
-                    }
-                },
-                datalabels: {
-                    color: '#fff',
-                    font: { weight: 'bold', size: 10 },
-                    formatter: (value) => formatPercent(value, total),
-                    display: (ctx) => {
-                        const pct = (ctx.dataset.data[ctx.dataIndex] / total) * 100;
-                        return pct >= 8; // hide very small slices to keep it readable
-                    },
-                    textShadowColor: 'rgba(0,0,0,0.35)',
-                    textShadowBlur: 3
-                }
-            },
-            cutout: '60%',
-            animation: { animateScale: true, animateRotate: true }
-        },
-        plugins: [ChartDataLabels]
-    });
-
-    // Build custom legend with % next to each label
-    const legendEl = document.getElementById('doNutLegend');
-    if (legendEl) {
-        legendEl.innerHTML = serviceLabels.map((label, i) => {
-            const val = serviceData[i];
-            const pct = formatPercent(val, total);
-            return `<span class="donut-legend-item">
-                        <span class="donut-legend-dot" style="background:${colors[i % colors.length]};"></span>
-                        ${label} <span class="donut-legend-pct">${pct}</span>
-                    </span>`;
-        }).join('');
-    }
 })();
 <?php endif; ?>
 

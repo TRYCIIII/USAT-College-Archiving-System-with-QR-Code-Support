@@ -1,395 +1,409 @@
 <?php
-// ============================================================
-// upload_file.php — Fixed & bulletproof JSON-only version
-// ============================================================
+/**
+ * upload_file.php  (new version)
+ *
+ * REQUIRED : file, title_of_program, date_conducted
+ * OPTIONAL : custom_control_number, type_of_community_service,
+ *            no_of_beneficiaries, community_population_served, description
+ *
+ * - Works with the AJAX upload form in files.php (returns JSON)
+ * - Also works as a normal form post (redirects back to files.php)
+ * - Adapts to your `files` table: only fills columns that actually exist
+ * - Optional fields left blank never break the insert (NULL / '' / 0 is chosen
+ *   automatically depending on whether the column allows NULL)
+ */
 
-// ---- Must be first: prevent HTML error leaks ----
+// Never print PHP warnings into the JSON response
+ini_set('display_errors', '0');
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
+ob_start();
 
-// ---- Ensure log dir exists ----
-$logDir = __DIR__ . DIRECTORY_SEPARATOR . 'logs';
-if (!is_dir($logDir)) {
-    @mkdir($logDir, 0777, true);
-}
-@ini_set('error_log', $logDir . DIRECTORY_SEPARATOR . 'upload_errors.log');
-
-// ---- Start session ----
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// ---- Determine AJAX ----
-$is_ajax = isset($_SERVER['HTTP_X_REQUESTED_WITH'])
-    && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+require_once 'config/database.php';
+require_once 'includes/auth.php';
 
-// ---- ALWAYS send JSON header, even for errors ----
-header('Content-Type: application/json; charset=utf-8');
+date_default_timezone_set('Asia/Manila');
 
-// ---- Catch fatal errors and still return JSON ----
-register_shutdown_function(function () {
-    $err = error_get_last();
-    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
-        if (!headers_sent()) {
-            http_response_code(500);
-            header('Content-Type: application/json; charset=utf-8');
+// ---------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------
+$isAjax = (
+    (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+    || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+);
+
+function respond_json(array $payload, int $code = 200): void {
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($payload);
+    exit();
+}
+
+function fail(string $message, int $folderId = 1): void {
+    global $isAjax;
+    if ($isAjax) {
+        respond_json(['success' => false, 'error' => $message], 200);
+    }
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    header('Location: files.php?folder=' . $folderId . '&error=' . urlencode($message));
+    exit();
+}
+
+function current_user_id(): int {
+    if (function_exists('getCurrentUserId')) {
+        return (int)getCurrentUserId();
+    }
+    return (int)($_SESSION['user_id'] ?? 0);
+}
+
+function app_base_url(): string {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $dir  = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+    return $protocol . $host . $dir;
+}
+
+function root_folder_name(PDO $pdo, int $folderId): string {
+    $currentId = $folderId;
+    $safety = 0;
+    $last = null;
+    while ($currentId > 1 && $safety++ < 50) {
+        $st = $pdo->prepare("SELECT id, folder_name, parent_id FROM folders WHERE id = ?");
+        $st->execute([$currentId]);
+        $f = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$f) break;
+        $last = $f;
+        if ((int)$f['parent_id'] === 0 || (int)$f['parent_id'] === 1) {
+            return $f['folder_name'];
         }
-        echo json_encode([
-            'success' => false,
-            'error'   => 'Fatal: ' . $err['message'] . ' in ' . basename($err['file']) . ':' . $err['line'],
-        ]);
+        $currentId = (int)$f['parent_id'];
     }
-});
+    return $last ? $last['folder_name'] : 'DOCUMENTS';
+}
 
-// ---- Load DB & auth ----
+function upload_error_text(int $code): string {
+    switch ($code) {
+        case UPLOAD_ERR_INI_SIZE:   return 'The file is larger than the server limit (upload_max_filesize in php.ini).';
+        case UPLOAD_ERR_FORM_SIZE:  return 'The file is too large.';
+        case UPLOAD_ERR_PARTIAL:    return 'The file was only partially uploaded. Please try again.';
+        case UPLOAD_ERR_NO_FILE:    return 'Please select a file to upload.';
+        case UPLOAD_ERR_NO_TMP_DIR: return 'Server error: missing temporary folder.';
+        case UPLOAD_ERR_CANT_WRITE: return 'Server error: failed to write file to disk.';
+        case UPLOAD_ERR_EXTENSION:  return 'A PHP extension stopped the upload.';
+        default:                    return 'Unknown upload error.';
+    }
+}
+
+// ---------------------------------------------------------------
+// Auth + method
+// ---------------------------------------------------------------
+if (!function_exists('isLoggedIn') || !isLoggedIn()) {
+    if ($isAjax) {
+        respond_json(['success' => false, 'error' => 'Session expired. Please log in again.'], 401);
+    }
+    header('Location: index.php');
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: files.php');
+    exit();
+}
+
+$folderId = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 1;
+if ($folderId < 1) $folderId = 1;
+
 try {
-    require_once __DIR__ . '/config/database.php';
-    require_once __DIR__ . '/includes/auth.php';
-} catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Bootstrap failed: ' . $e->getMessage()]);
-    exit();
-}
+    // -----------------------------------------------------------
+    // Read + validate input
+    // -----------------------------------------------------------
+    $title        = trim($_POST['title_of_program'] ?? '');
+    $dateRaw      = trim($_POST['date_conducted'] ?? '');
+    $customCN     = strtoupper(trim($_POST['custom_control_number'] ?? ''));
+    $typeService  = trim($_POST['type_of_community_service'] ?? '');
+    $benefRaw     = trim($_POST['no_of_beneficiaries'] ?? '');
+    $community    = trim($_POST['community_population_served'] ?? '');
+    $description  = trim($_POST['description'] ?? '');
 
-// ---- JSON helpers ----
-function json_out($success, $error = '', $data = []) {
-    $response = array_merge(['success' => (bool)$success, 'error' => $error], $data);
-    echo json_encode($response);
-    exit();
-}
-
-function fail($msg, $code = 400, $folder_id = 1) {
-    global $is_ajax, $pdo;
-    error_log("UPLOAD FAIL: " . $msg);
-    if ($is_ajax) {
-        http_response_code($code);
-        json_out(false, $msg);
+    // ---- REQUIRED fields only ----
+    if (!isset($_FILES['file'])) {
+        fail('Please select a file to upload.', $folderId);
     }
-    $_SESSION['error'] = $msg;
-    header("Location: files.php?folder=" . (int)$folder_id . "&error=" . urlencode($msg));
-    exit();
-}
-
-// ---- Main try/catch — nothing escapes ----
-try {
-    // ---- Auth ----
-    if (!function_exists('isLoggedIn') || !isLoggedIn()) {
-        fail('Not logged in. Please log in again.', 401);
+    if ($_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        fail(upload_error_text((int)$_FILES['file']['error']), $folderId);
+    }
+    if ($title === '') {
+        fail('Title of Program is required.', $folderId);
+    }
+    if ($dateRaw === '') {
+        fail('Date Conducted is required.', $folderId);
+    }
+    $dt = DateTime::createFromFormat('Y-m-d', $dateRaw);
+    if (!$dt || $dt->format('Y-m-d') !== $dateRaw) {
+        fail('Date Conducted is not a valid date.', $folderId);
     }
 
-    // ---- Method ----
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        fail('POST required', 405);
-    }
-
-    // ---- Oversized upload (post_max_size exceeded → empty $_POST + $_FILES) ----
-    if (empty($_POST) && empty($_FILES) && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
-        fail('Upload exceeded post_max_size (' . ini_get('post_max_size') . '). Increase in php.ini.', 413);
-    }
-
-    $folder_id = isset($_POST['folder_id']) ? (int)$_POST['folder_id'] : 1;
-    if ($folder_id <= 0) $folder_id = 1;
-
-    $custom_control_number = isset($_POST['custom_control_number'])
-        ? trim($_POST['custom_control_number'])
-        : '';
-
-    // ---- Verify folder exists ----
-    try {
-        $stmt = $pdo->prepare("SELECT id FROM folders WHERE id = ?");
-        $stmt->execute([$folder_id]);
-        if (!$stmt->fetch()) {
-            fail("Folder (id=$folder_id) not found. Create it or use folder 1.", 404, 1);
+    // ---- OPTIONAL fields: sanitize only ----
+    $benefInt = null;
+    if ($benefRaw !== '') {
+        if (!ctype_digit($benefRaw)) {
+            fail('No. of Beneficiaries must be a whole number (or leave it blank).', $folderId);
         }
-    } catch (Throwable $e) {
-        fail("Cannot verify folder: " . $e->getMessage(), 500, 1);
+        $benefInt = (int)$benefRaw;
     }
 
     // ---- File checks ----
-    if (!isset($_FILES['file'])) {
-        fail('No file received. Form must use enctype="multipart/form-data".', 400, $folder_id);
+    $origName = basename($_FILES['file']['name']);
+    $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+    $allowed  = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif'];
+    if (!in_array($ext, $allowed, true)) {
+        fail('File type not allowed. Allowed: ' . implode(', ', $allowed) . '.', $folderId);
+    }
+    $sizeBytes = (int)$_FILES['file']['size'];
+    if ($sizeBytes <= 0) {
+        fail('The selected file is empty.', $folderId);
+    }
+    if ($sizeBytes > 10 * 1024 * 1024) {
+        fail('File is too large. Maximum size is 10MB.', $folderId);
+    }
+    if (!is_uploaded_file($_FILES['file']['tmp_name'])) {
+        fail('Invalid upload.', $folderId);
     }
 
-    $err_code = isset($_FILES['file']['error']) ? (int)$_FILES['file']['error'] : 4;
-    if ($err_code !== UPLOAD_ERR_OK) {
-        $errs = [
-            UPLOAD_ERR_INI_SIZE   => 'File too large (server limit: ' . ini_get('upload_max_filesize') . ')',
-            UPLOAD_ERR_FORM_SIZE  => 'File too large (form limit)',
-            UPLOAD_ERR_PARTIAL    => 'File only partially uploaded',
-            UPLOAD_ERR_NO_FILE    => 'No file selected',
-            UPLOAD_ERR_NO_TMP_DIR => 'Missing upload_tmp_dir (check php.ini)',
-            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
-            UPLOAD_ERR_EXTENSION  => 'Upload stopped by PHP extension',
-        ];
-        fail($errs[$err_code] ?? "Upload error code: $err_code", 400, $folder_id);
-    }
-
-    // ---- Sanitize filename (prevent path traversal) ----
-    $raw_name = (string)($_FILES['file']['name'] ?? '');
-    $filename = basename($raw_name);
-    $filename = preg_replace('/[^\w\-\. ]+/u', '_', $filename);
-    if ($filename === '' || $filename === '.' || $filename === '..') {
-        $filename = 'upload_' . time() . '.bin';
-    }
-
-    $file_tmp   = $_FILES['file']['tmp_name'];
-    $file_size  = (int)($_FILES['file']['size'] ?? 0);
-    $file_ext   = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-    // ---- Size limit (10 MB) ----
-    $max_bytes = 10 * 1024 * 1024;
-    if ($file_size > $max_bytes) {
-        fail('File too large (max 10 MB, yours: ' . round($file_size / 1048576, 2) . ' MB)', 413, $folder_id);
-    }
-    if ($file_size === 0) {
-        fail('Uploaded file is empty', 400, $folder_id);
-    }
-
-    // ---- Extension check ----
-    $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'doc', 'docx', 'xls', 'xlsx'];
-    if (!in_array($file_ext, $allowed, true)) {
-        fail('File type .' . $file_ext . ' not allowed. Allowed: ' . implode(', ', $allowed), 400, $folder_id);
-    }
-
-    // ---- Temp file sanity ----
-    if (!file_exists($file_tmp)) {
-        fail('Temporary upload file missing. Check upload_tmp_dir in php.ini.', 500, $folder_id);
-    }
-
-    // ---- Ensure uploads & qrcodes dirs ----
-    $upload_dir = __DIR__ . DIRECTORY_SEPARATOR . 'uploads';
-    $qr_dir     = __DIR__ . DIRECTORY_SEPARATOR . 'qrcodes';
-
-    foreach ([$upload_dir, $qr_dir] as $dir) {
-        if (!is_dir($dir)) {
-            if (!@mkdir($dir, 0777, true) && !is_dir($dir)) {
-                fail('Cannot create directory: ' . $dir, 500, $folder_id);
-            }
-        }
-        if (!is_writable($dir)) {
-            @chmod($dir, 0777);
-            if (!is_writable($dir)) {
-                fail('Directory not writable: ' . $dir, 500, $folder_id);
-            }
+    // ---- Folder must exist (folder 1 = virtual root "My Drive") ----
+    if ($folderId > 1) {
+        $st = $pdo->prepare("SELECT id FROM folders WHERE id = ?");
+        $st->execute([$folderId]);
+        if (!$st->fetch()) {
+            fail('The destination folder no longer exists.', 1);
         }
     }
 
-    // ---- Move uploaded file ----
-    $new_filename = date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $file_ext;
-    $final_path   = $upload_dir . DIRECTORY_SEPARATOR . $new_filename;
-    $rel_path     = 'uploads/' . $new_filename;
-
-    if (!move_uploaded_file($file_tmp, $final_path)) {
-        fail('Failed to save uploaded file. Check permissions on: ' . $upload_dir, 500, $folder_id);
+    // -----------------------------------------------------------
+    // Inspect the `files` table (so we only use columns that exist)
+    // -----------------------------------------------------------
+    $colInfo = [];
+    foreach ($pdo->query("SHOW COLUMNS FROM files")->fetchAll(PDO::FETCH_ASSOC) as $c) {
+        $colInfo[strtolower($c['Field'])] = $c;
     }
-    @chmod($final_path, 0644);
+    $has = function (string $name) use ($colInfo): bool { return isset($colInfo[strtolower($name)]); };
 
-    $file_size_kb = round($file_size / 1024, 2);
+    // For optional fields: choose NULL when the column allows it, otherwise '' or 0
+    $nullable = function (string $name) use ($colInfo): bool {
+        return isset($colInfo[strtolower($name)]) && strtoupper($colInfo[strtolower($name)]['Null']) === 'YES';
+    };
+    $optString = function (string $col, string $value) use ($nullable) {
+        if ($value !== '') return $value;
+        return $nullable($col) ? null : '';
+    };
+    $optInt = function (string $col, ?int $value) use ($nullable) {
+        if ($value !== null) return $value;
+        return $nullable($col) ? null : 0;
+    };
 
-    // ---- Metadata ----
-    $title_of_program            = trim($_POST['title_of_program'] ?? '');
-    $date_conducted              = !empty($_POST['date_conducted']) ? $_POST['date_conducted'] : null;
-    $type_of_community_service   = trim($_POST['type_of_community_service'] ?? '');
-    $community_population_served = trim($_POST['community_population_served'] ?? '');
-    $no_of_beneficiaries         = !empty($_POST['no_of_beneficiaries']) ? (int)$_POST['no_of_beneficiaries'] : 0;
-    $description                 = trim($_POST['description'] ?? '');
-
-    if ($title_of_program === '')            { @unlink($final_path); fail('Title of Program is required', 400, $folder_id); }
-    if (empty($date_conducted))              { @unlink($final_path); fail('Date Conducted is required', 400, $folder_id); }
-    if ($type_of_community_service === '')   { @unlink($final_path); fail('Type of Community Service is required', 400, $folder_id); }
-    if ($community_population_served === '') { @unlink($final_path); fail('Community Served is required', 400, $folder_id); }
-
-    // ---- Root folder name (cycle-safe) ----
-    function getRootFolderName($pdo, $folder_id) {
-        $current_id = $folder_id;
-        $safety = 0;
-        while ($current_id > 1 && $safety++ < 50) {
-            $stmt = $pdo->prepare("SELECT id, folder_name, parent_id FROM folders WHERE id = ?");
-            $stmt->execute([$current_id]);
-            $folder = $stmt->fetch(PDO::FETCH_ASSOC);
-            if (!$folder) break;
-            if ($folder['parent_id'] == 0 || $folder['parent_id'] == 1) {
-                return $folder['folder_name'];
-            }
-            $current_id = $folder['parent_id'];
-        }
-        return 'DOCUMENTS';
-    }
-
-    // ---- Control number generation ----
-    if ($custom_control_number === '') {
-        $root_name     = getRootFolderName($pdo, $folder_id);
-        $folder_prefix = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $root_name));
-        if ($folder_prefix === '') $folder_prefix = 'DOCUMENTS';
-
-        $prefix = 'USAT-' . $folder_prefix . '-';
-
-        // Find max numeric suffix
-        $stmt = $pdo->prepare(
-            "SELECT control_number FROM files
-             WHERE control_number LIKE ?
-             ORDER BY LENGTH(control_number) DESC, control_number DESC
-             LIMIT 1"
-        );
-        $stmt->execute([$prefix . '%']);
-        $last = $stmt->fetchColumn();
-
-        $next = 1;
-        if ($last) {
-            $parts = explode('-', $last);
-            $next = (int)end($parts) + 1;
-        }
-
-        $control_number = $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
+    // -----------------------------------------------------------
+    // Control number (custom or auto)
+    // -----------------------------------------------------------
+    if (!$has('control_number')) {
+        $controlNumber = '';
     } else {
-        $control_number = strtoupper($custom_control_number);
-        $chk = $pdo->prepare("SELECT id FROM files WHERE control_number = ?");
-        $chk->execute([$control_number]);
-        if ($chk->fetch()) {
-            @unlink($final_path);
-            fail('Control number already exists: ' . $control_number, 409, $folder_id);
+        if ($customCN !== '') {
+            $st = $pdo->prepare("SELECT id FROM files WHERE control_number = ? LIMIT 1");
+            $st->execute([$customCN]);
+            if ($st->fetch()) {
+                fail('Control Number "' . $customCN . '" is already used. Leave it blank for auto-generate.', $folderId);
+            }
+            $controlNumber = $customCN;
+        } else {
+            $rootName = root_folder_name($pdo, $folderId);
+            $rootName = strtoupper(preg_replace('/[^A-Za-z0-9_\-]/', '', str_replace(' ', '', $rootName)));
+            if ($rootName === '') $rootName = 'DOCUMENTS';
+            $prefix = 'USAT-' . $rootName . '-';
+
+            $st = $pdo->prepare("SELECT control_number FROM files WHERE control_number LIKE ?");
+            $st->execute([$prefix . '%']);
+            $max = 0;
+            foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $cn) {
+                if (preg_match('/^' . preg_quote($prefix, '/') . '(\d+)$/', (string)$cn, $m)) {
+                    $max = max($max, (int)$m[1]);
+                }
+            }
+            do {
+                $max++;
+                $controlNumber = $prefix . str_pad((string)$max, 4, '0', STR_PAD_LEFT);
+                $chk = $pdo->prepare("SELECT id FROM files WHERE control_number = ? LIMIT 1");
+                $chk->execute([$controlNumber]);
+            } while ($chk->fetch());
         }
     }
 
-    // ---- Detect files table columns ----
-    try {
-        $cols = $pdo->query("SHOW COLUMNS FROM files")->fetchAll(PDO::FETCH_COLUMN);
-        $cols = array_map('strtolower', $cols);
-    } catch (Throwable $e) {
-        @unlink($final_path);
-        fail('Cannot read files table schema: ' . $e->getMessage(), 500, $folder_id);
+    // -----------------------------------------------------------
+    // Where to store the file (matches how existing rows store it)
+    // -----------------------------------------------------------
+    $pathCol = null;
+    foreach (['file_path', 'filepath', 'path', 'stored_name', 'file_location', 'file_url'] as $cand) {
+        if ($has($cand)) { $pathCol = $cand; break; }
     }
 
-    $candidate = [
-        'folder_id'                   => $folder_id,
-        'file_name'                   => $filename,
-        'file_path'                   => $rel_path,
-        'file_extension'              => $file_ext,
-        'file_size'                   => $file_size_kb,
-        'control_number'              => $control_number,
-        'title_of_program'            => $title_of_program,
-        'date_conducted'              => $date_conducted,
-        'type_of_community_service'   => $type_of_community_service,
-        'community_population_served' => $community_population_served,
-        'no_of_beneficiaries'         => $no_of_beneficiaries,
-        'description'                 => $description,
-        'status'                      => 'active',
-        'uploaded_by'                 => $_SESSION['user_id'] ?? 1,
-    ];
+    $diskDir    = __DIR__ . '/uploads/';
+    $storedPref = 'uploads/';   // what we write in the DB column in front of the file name
+    $absStored  = false;
 
-    $insert_cols  = [];
-    $placeholders = [];
-    $values       = [];
-    foreach ($candidate as $col => $val) {
-        if (in_array($col, $cols, true)) {
-            $insert_cols[]  = "`$col`";
-            $placeholders[] = '?';
-            $values[]       = $val;
+    if ($pathCol) {
+        try {
+            $sample = $pdo->query("SELECT `$pathCol` FROM files WHERE `$pathCol` IS NOT NULL AND `$pathCol` <> '' ORDER BY id DESC LIMIT 1")->fetchColumn();
+        } catch (Throwable $e) { $sample = false; }
+
+        if ($sample) {
+            $norm = str_replace('\\', '/', (string)$sample);
+            $isAbsolute = (bool)preg_match('#^([a-zA-Z]:/|/)#', $norm);
+            if ($isAbsolute) {
+                $absStored  = true;
+                $diskDir    = rtrim(dirname($norm), '/') . '/';
+                $storedPref = $diskDir;
+            } elseif (strpos($norm, '/') !== false) {
+                $storedPref = rtrim(dirname($norm), '/') . '/';
+                $diskDir    = __DIR__ . '/' . $storedPref;
+            } else {
+                // existing rows store only the file name
+                $storedPref = '';
+                $diskDir    = __DIR__ . '/uploads/';
+            }
         }
     }
 
-    // Timestamps
-    if (in_array('created_at', $cols, true)) {
-        $insert_cols[]  = '`created_at`';
-        $placeholders[] = 'NOW()';
+    if (!is_dir($diskDir)) {
+        if (!@mkdir($diskDir, 0755, true) && !is_dir($diskDir)) {
+            fail('Server error: cannot create the uploads folder.', $folderId);
+        }
     }
-    if (in_array('updated_at', $cols, true)) {
-        $insert_cols[]  = '`updated_at`';
-        $placeholders[] = 'NOW()';
-    }
-
-    if (empty($insert_cols)) {
-        @unlink($final_path);
-        fail('files table has no compatible columns', 500, $folder_id);
+    if (!is_writable($diskDir)) {
+        fail('Server error: the uploads folder is not writable.', $folderId);
     }
 
-    $sql = "INSERT INTO files (" . implode(',', $insert_cols) . ") VALUES (" . implode(',', $placeholders) . ")";
+    $storedName = date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
+    $diskPath   = rtrim($diskDir, '/\\') . '/' . $storedName;
+
+    if (!move_uploaded_file($_FILES['file']['tmp_name'], $diskPath)) {
+        fail('Failed to save the uploaded file.', $folderId);
+    }
+
+    $dbPathValue = $storedPref . $storedName;
+    $sizeKB      = (int)max(1, ceil($sizeBytes / 1024));
+    $mime        = $_FILES['file']['type'] ?? '';
+
+    // -----------------------------------------------------------
+    // Build INSERT dynamically (only existing columns)
+    // -----------------------------------------------------------
+    $values = [];   // column => value (bound)
+    $literal = [];  // column => raw SQL (e.g. NOW())
+
+    $set = function (string $col, $val) use (&$values, $has) {
+        if ($has($col)) $values[$col] = $val;
+    };
+
+    $set('file_name',       $origName);
+    $set('original_name',   $origName);
+    $set('stored_name',     $storedName);
+    $set('file_extension',  $ext);
+    $set('file_type',       $ext);
+    $set('mime_type',       $mime);
+    $set('file_size',       $sizeKB);   // files.php displays this value as "KB"
+    $set('folder_id',       $folderId);
+    $set('control_number',  $controlNumber);
+    $set('title_of_program', $title);
+    $set('date_conducted',  $dateRaw);
+    $set('type_of_community_service',   $optString('type_of_community_service', $typeService));
+    $set('no_of_beneficiaries',         $optInt('no_of_beneficiaries', $benefInt));
+    $set('community_population_served', $optString('community_population_served', $community));
+    $set('description',     $optString('description', $description));
+    $set('uploaded_by',     current_user_id());
+    $set('status',          'active');
+
+    if ($pathCol && $pathCol !== 'stored_name') {
+        $values[$pathCol] = $dbPathValue;
+    } elseif ($pathCol === 'stored_name') {
+        $values['stored_name'] = $dbPathValue;
+    }
+    // If file_path-like column differs from file_name, don't overwrite file_name
+    if ($has('file_path') && $pathCol !== 'file_path') { $values['file_path'] = $dbPathValue; }
+
+    if ($has('created_at')) $literal['created_at'] = 'NOW()';
+    if ($has('updated_at')) $literal['updated_at'] = 'NOW()';
+
+    $cols = [];
+    $phs  = [];
+    $bind = [];
+    foreach ($values as $col => $val) {
+        $cols[] = "`$col`";
+        $phs[]  = '?';
+        $bind[] = $val;
+    }
+    foreach ($literal as $col => $sql) {
+        $cols[] = "`$col`";
+        $phs[]  = $sql;
+    }
+
+    $sql = "INSERT INTO files (" . implode(',', $cols) . ") VALUES (" . implode(',', $phs) . ")";
 
     try {
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($values);
-        $file_id = (int)$pdo->lastInsertId();
+        $ins = $pdo->prepare($sql);
+        $ins->execute($bind);
     } catch (Throwable $e) {
-        @unlink($final_path);
-        fail('Database insert failed: ' . $e->getMessage(), 500, $folder_id);
+        // roll back the physical file if the DB insert failed
+        @unlink($diskPath);
+        error_log('upload_file.php insert error: ' . $e->getMessage());
+        fail('Database error while saving the file: ' . $e->getMessage(), $folderId);
     }
 
-    // ---- QR code — return URL (fast, no download during upload) ----
-    $protocol   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-    $host       = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $script_dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
-    $view_url   = $protocol . $host . $script_dir . '/view_document.php?id=' . $file_id;
-    $qr_url     = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode($view_url);
+    $fileId = (int)$pdo->lastInsertId();
 
-    // Try to cache locally (short timeout — never blocks upload)
-    $ctx = stream_context_create([
-        'http'  => ['timeout' => 3],
-        'https' => ['timeout' => 3],
-    ]);
-    $qr_content = @file_get_contents($qr_url, false, $ctx);
+    // -----------------------------------------------------------
+    // QR code (same link format used by files.php)
+    // -----------------------------------------------------------
+    $viewUrl = app_base_url() . '/view_document.php?id=' . $fileId;
+    $qrUrl   = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($viewUrl);
 
-    $qr_base64 = '';
-    if ($qr_content !== false && strlen($qr_content) > 100) {
-        $qr_filename = 'qr_' . $file_id . '_' . time() . '.png';
-        $qr_full     = $qr_dir . DIRECTORY_SEPARATOR . $qr_filename;
-        $qr_rel      = 'qrcodes/' . $qr_filename;
-
-        if (@file_put_contents($qr_full, $qr_content) !== false && in_array('qr_code_path', $cols, true)) {
+    foreach (['qr_code', 'qr_code_path', 'qr_path', 'qr_url'] as $qrCol) {
+        if ($has($qrCol)) {
             try {
-                $pdo->prepare("UPDATE files SET qr_code_path = ? WHERE id = ?")
-                    ->execute([$qr_rel, $file_id]);
+                $pdo->prepare("UPDATE files SET `$qrCol` = ? WHERE id = ?")->execute([$qrUrl, $fileId]);
             } catch (Throwable $e) { /* ignore */ }
+            break;
         }
-        $qr_base64 = 'data:image/png;base64,' . base64_encode($qr_content);
-    } else {
-        // SVG fallback (no GD needed, no warnings)
-        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">'
-             . '<rect width="300" height="300" fill="#ffffff"/>'
-             . '<rect x="10" y="10" width="280" height="280" fill="#667eea" rx="12"/>'
-             . '<text x="150" y="130" font-family="Arial" font-size="16" fill="#ffffff" text-anchor="middle">QR Code</text>'
-             . '<text x="150" y="160" font-family="Courier" font-size="14" fill="#ffffff" text-anchor="middle">'
-             . htmlspecialchars($control_number, ENT_QUOTES) . '</text>'
-             . '<text x="150" y="195" font-family="Arial" font-size="11" fill="rgba(255,255,255,0.8)" text-anchor="middle">USAT Archive System</text>'
-             . '</svg>';
-        $qr_base64 = 'data:image/svg+xml;base64,' . base64_encode($svg);
     }
 
-    // ---- Activity log (best-effort) ----
+    // -----------------------------------------------------------
+    // Activity log (optional table)
+    // -----------------------------------------------------------
     try {
-        $pdo->prepare("INSERT INTO activity_log (user_id, action, description, ip_address) VALUES (?, 'FILE_UPLOAD', ?, ?)")
-            ->execute([
-                $_SESSION['user_id'] ?? 1,
-                "Uploaded file: $filename (Control: $control_number)",
-                $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-            ]);
-    } catch (Throwable $e) { /* ignore */ }
+        $log = $pdo->prepare("INSERT INTO activity_log (user_id, action, description, ip_address) VALUES (?, 'UPLOAD_FILE', ?, ?)");
+        $log->execute([current_user_id(), 'Uploaded file: ' . $origName . ($controlNumber ? ' (' . $controlNumber . ')' : ''), $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1']);
+    } catch (Throwable $e) { /* table may not exist */ }
 
-    // ---- Success ----
-    if ($is_ajax) {
-        json_out(true, '', [
-            'file_id'        => $file_id,
-            'file_name'      => $filename,
-            'control_number' => $control_number,
-            'qr_code'        => $qr_base64,
-            'view_url'       => $view_url,
+    // -----------------------------------------------------------
+    // Done
+    // -----------------------------------------------------------
+    if ($isAjax) {
+        respond_json([
+            'success'        => true,
             'message'        => 'File uploaded successfully',
+            'file_id'        => $fileId,
+            'control_number' => $controlNumber,
+            'qr_code'        => $qrUrl,
+            'view_url'       => $viewUrl
         ]);
     }
 
-    $_SESSION['success'] = "File uploaded successfully! Control Number: " . $control_number;
-    header("Location: files.php?folder=" . $folder_id . "&success=file_uploaded&show_qr=" . $file_id);
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    header('Location: files.php?folder=' . $folderId . '&success=file_uploaded&show_qr=' . $fileId);
     exit();
 
 } catch (Throwable $e) {
-    error_log("upload_file FATAL: " . $e->getMessage() . " @ " . $e->getFile() . ":" . $e->getLine());
-    if (!headers_sent()) {
-        http_response_code(500);
-        header('Content-Type: application/json; charset=utf-8');
-    }
-    echo json_encode([
-        'success' => false,
-        'error'   => 'Server error: ' . $e->getMessage(),
-    ]);
-    exit();
+    error_log('upload_file.php fatal: ' . $e->getMessage());
+    fail('Upload failed: ' . $e->getMessage(), $folderId);
 }

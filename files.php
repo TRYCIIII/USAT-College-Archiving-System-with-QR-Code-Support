@@ -228,14 +228,30 @@ if (function_exists('isAdmin') && isAdmin()) {
     } catch (PDOException $e) { $trash_count = 0; }
 }
 
-// ---- QR Code URL (replaced dead Google Chart API with working QR service) ----
-function getQRCodeUrl($file_id) {
+// ---- Base URL of this app folder (used by all QR codes) ----
+function getAppBaseUrl() {
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $script_dir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
-    $view_url = $protocol . $host . $script_dir . '/view_document.php?id=' . $file_id;
+    return $protocol . $host . $script_dir;
+}
+
+// ---- QR Code URL for FILES ----
+function getQRCodeUrl($file_id) {
+    $view_url = getAppBaseUrl() . '/view_document.php?id=' . (int)$file_id;
     // api.qrserver.com is free and still works — no API key needed
     return "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($view_url);
+}
+
+// ---- NEW: link that opens a FOLDER when its QR code is scanned ----
+function getFolderViewUrl($folder_id) {
+    return getAppBaseUrl() . '/files.php?folder=' . (int)$folder_id;
+}
+
+// ---- NEW: QR Code image URL for FOLDERS ----
+function getFolderQRUrl($folder_id, $size = 120) {
+    $size = (int)$size;
+    return "https://api.qrserver.com/v1/create-qr-code/?size={$size}x{$size}&margin=4&data=" . urlencode(getFolderViewUrl($folder_id));
 }
 ?>
 <!DOCTYPE html>
@@ -274,6 +290,8 @@ function getQRCodeUrl($file_id) {
         .btn-download-all:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(102,126,234,.4)}
         .btn-print-all{background:linear-gradient(135deg,#f59e0b,#ea580c);border:none;border-radius:50px;padding:10px 28px;color:#fff;cursor:pointer;font-weight:600;transition:all .3s}
         .btn-print-all:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(245,158,11,.4)}
+        .btn-print-folder-qr{background:linear-gradient(135deg,#0ea5e9,#6366f1);border:none;border-radius:50px;padding:10px 28px;color:#fff;cursor:pointer;font-weight:600;transition:all .3s}
+        .btn-print-folder-qr:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(99,102,241,.4)}
         .btn-trash{background:linear-gradient(135deg,#ef4444,#dc2626);border:none;border-radius:50px;padding:10px 28px;color:#fff;cursor:pointer;font-weight:600;transition:all .3s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
         .btn-trash:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(239,68,68,.4);color:#fff}
         .search-container-enhanced{display:flex;gap:15px;margin-bottom:32px;flex-wrap:wrap;align-items:center}
@@ -347,6 +365,15 @@ function getQRCodeUrl($file_id) {
         .qr-preview-card .qr-label{font-size:9px;color:#6c757d;margin-top:4px;word-break:break-all}
         .toast-notification{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:14px 28px;border-radius:50px;font-size:15px;font-weight:500;z-index:99999;max-width:90%;text-align:center;animation:fadeInUp 0.3s ease;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
         @keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+        /* ===== FOLDER QR CODE (NEW) ===== */
+        .folder-qr-box{margin:2px auto 10px;padding:6px;background:#fff;border:1px solid #e9ecef;border-radius:12px;display:inline-flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s}
+        .folder-qr-box:hover{border-color:#667eea;box-shadow:0 4px 12px rgba(102,126,234,.25);transform:scale(1.04)}
+        .folder-qr-box img{width:70px;height:70px;display:block;border-radius:6px}
+        .folder-qr-box span{font-size:9px;color:#667eea;font-weight:700;margin-top:3px;letter-spacing:.3px}
+        .folder-qr-modal-box{background:#f8f9fa;border-radius:20px;padding:20px;display:inline-block;border:1px solid #e9ecef}
+        .folder-qr-modal-box img{width:260px;max-width:100%;height:auto;background:#fff;border-radius:12px;padding:8px;border:1px solid #ddd}
+        .folder-qr-name{display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:6px 16px;border-radius:30px;font-weight:700;font-size:14px;margin-bottom:14px;word-break:break-word;max-width:100%}
         @media(max-width:768px){body{padding:10px}.file-manager{padding:20px}.grid-view-premium{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}.action-buttons-premium{justify-content:center}.fm-header{flex-direction:column}.breadcrumb-premium{justify-content:center}.search-container-enhanced{flex-direction:column}.search-by-cn-btn{width:100%;justify-content:center}}
     </style>
 </head>
@@ -395,6 +422,9 @@ function getQRCodeUrl($file_id) {
             <?php endif; ?>
         </a>
         <?php endif; ?>
+        <?php if(count($subfolders) > 0): ?>
+        <button class="btn-print-folder-qr" onclick="printAllFolderQRs()"><i class="fas fa-qrcode"></i> Print All Folder QR (<?php echo count($subfolders); ?>)</button>
+        <?php endif; ?>
         <?php if(count($files) > 0): ?>
         <button class="btn-download-all" onclick="downloadAllFiles()"><i class="fas fa-download"></i> Download All (<?php echo count($files); ?> files)</button>
         <button class="btn-print-all" onclick="printAllFiles()"><i class="fas fa-print"></i> Print All (<?php echo count($files); ?> docs)</button>
@@ -418,6 +448,12 @@ function getQRCodeUrl($file_id) {
             <?php foreach($subfolders as $folder): ?>
                 <div class="grid-item-premium" data-folder-id="<?php echo (int)$folder['id']; ?>" data-folder-type="folder" ondblclick="location.href='?folder=<?php echo (int)$folder['id']; ?><?php echo $show_archived=='1'?'&show_archived=1':''; ?>'">
                     <div class="action-menu">
+                        <!-- NEW: Folder QR button -->
+                        <button class="action-icon qr" title="Show Folder QR Code"
+                                data-folder-id="<?php echo (int)$folder['id']; ?>"
+                                data-folder-name="<?php echo htmlspecialchars($folder['folder_name'], ENT_QUOTES); ?>"
+                                data-folder-url="<?php echo htmlspecialchars(getFolderViewUrl($folder['id']), ENT_QUOTES); ?>"
+                                onclick="event.stopPropagation();openFolderQR(this)"><i class="fas fa-qrcode"></i></button>
                         <button class="action-icon edit" onclick="event.stopPropagation();renameFolder(<?php echo (int)$folder['id'];?>,'<?php echo htmlspecialchars($folder['folder_name'],ENT_QUOTES);?>')"><i class="fas fa-pen"></i></button>
                         <?php if($show_archived=='1'): ?>
                             <button class="action-icon archive" onclick="event.stopPropagation();restoreFolder(<?php echo (int)$folder['id'];?>)"><i class="fas fa-undo"></i></button>
@@ -428,6 +464,17 @@ function getQRCodeUrl($file_id) {
                     </div>
                     <div class="grid-icon-premium" onclick="location.href='?folder=<?php echo (int)$folder['id']; ?><?php echo $show_archived=='1'?'&show_archived=1':''; ?>'"><i class="fas fa-folder" style="color:#fbbf24;"></i></div>
                     <div class="grid-name-premium"><?php echo htmlspecialchars($folder['folder_name']);?></div>
+                    <!-- NEW: Folder QR thumbnail (click to enlarge) -->
+                    <div>
+                        <div class="folder-qr-box" title="Click to enlarge folder QR code"
+                             data-folder-id="<?php echo (int)$folder['id']; ?>"
+                             data-folder-name="<?php echo htmlspecialchars($folder['folder_name'], ENT_QUOTES); ?>"
+                             data-folder-url="<?php echo htmlspecialchars(getFolderViewUrl($folder['id']), ENT_QUOTES); ?>"
+                             onclick="event.stopPropagation();openFolderQR(this)">
+                            <img src="<?php echo htmlspecialchars(getFolderQRUrl($folder['id'], 120), ENT_QUOTES); ?>" alt="Folder QR" loading="lazy">
+                            <span><i class="fas fa-qrcode"></i> SCAN</span>
+                        </div>
+                    </div>
                     <div class="grid-meta-premium"><?php echo !empty($folder['created_at']) ? date('M d, Y', strtotime($folder['created_at'])) : '-';?></div>
                 </div>
             <?php endforeach; ?>
@@ -489,7 +536,18 @@ function getQRCodeUrl($file_id) {
                     <?php foreach($subfolders as $folder): ?>
                         <tr ondblclick="location.href='?folder=<?php echo (int)$folder['id']; ?><?php echo $show_archived=='1'?'&show_archived=1':''; ?>'">
                             <td><input type="checkbox" class="checkbox-select folder-checkbox" value="folder_<?php echo (int)$folder['id']; ?>" disabled></td>
-                            <td><span class="text-muted">-</span></td>
+                            <!-- NEW: Folder QR in list view -->
+                            <td>
+                                <div class="qr-preview-card" style="cursor:pointer;"
+                                     title="Click to enlarge folder QR code"
+                                     data-folder-id="<?php echo (int)$folder['id']; ?>"
+                                     data-folder-name="<?php echo htmlspecialchars($folder['folder_name'], ENT_QUOTES); ?>"
+                                     data-folder-url="<?php echo htmlspecialchars(getFolderViewUrl($folder['id']), ENT_QUOTES); ?>"
+                                     onclick="event.stopPropagation();openFolderQR(this)">
+                                    <img src="<?php echo htmlspecialchars(getFolderQRUrl($folder['id'], 120), ENT_QUOTES); ?>" alt="Folder QR" class="qr-thumb" loading="lazy">
+                                    <div class="qr-label">FOLDER</div>
+                                </div>
+                            </td>
                             <td><span class="text-muted">-</span></td>
                             <td><a href="?folder=<?php echo (int)$folder['id'];?>" style="text-decoration:none;color:#2d3748;"><i class="fas fa-folder" style="color:#fbbf24;margin-right:10px;"></i><?php echo htmlspecialchars($folder['folder_name']);?></a></td>
                             <td>-</td>
@@ -498,6 +556,11 @@ function getQRCodeUrl($file_id) {
                             <td>-</td>
                             <td><?php echo !empty($folder['created_at']) ? date('M d, Y', strtotime($folder['created_at'])) : '-';?></td>
                             <td>
+                                <button class="btn btn-sm btn-outline-info" title="Folder QR Code"
+                                        data-folder-id="<?php echo (int)$folder['id']; ?>"
+                                        data-folder-name="<?php echo htmlspecialchars($folder['folder_name'], ENT_QUOTES); ?>"
+                                        data-folder-url="<?php echo htmlspecialchars(getFolderViewUrl($folder['id']), ENT_QUOTES); ?>"
+                                        onclick="event.stopPropagation();openFolderQR(this)"><i class="fas fa-qrcode"></i></button>
                                 <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();renameFolder(<?php echo (int)$folder['id'];?>,'<?php echo htmlspecialchars($folder['folder_name'],ENT_QUOTES);?>')"><i class="fas fa-pen"></i></button>
                                 <?php if($show_archived=='1'): ?>
                                     <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation();restoreFolder(<?php echo (int)$folder['id'];?>)"><i class="fas fa-undo"></i></button>
@@ -591,18 +654,18 @@ function getQRCodeUrl($file_id) {
             <input type="date" name="date_conducted" id="date_conducted" class="form-control" required>
         </div>
         <div class="col-md-6 mb-3">
-            <label class="form-label">Type of Community Service <span class="text-danger">*</span></label>
-            <input type="text" name="type_of_community_service" id="type_of_community_service" class="form-control" required placeholder="e.g., Medical Mission">
+            <label class="form-label">Type of Community Service <span class="text-muted" style="font-size:11px;font-weight:400;">(optional)</span></label>
+            <input type="text" name="type_of_community_service" id="type_of_community_service" class="form-control" placeholder="e.g., Medical Mission">
         </div>
     </div>
     <div class="row">
         <div class="col-md-6 mb-3">
-            <label class="form-label">No. of Beneficiaries <span class="text-danger">*</span></label>
-            <input type="number" name="no_of_beneficiaries" id="no_of_beneficiaries" class="form-control" required placeholder="e.g., 150">
+            <label class="form-label">No. of Beneficiaries <span class="text-muted" style="font-size:11px;font-weight:400;">(optional)</span></label>
+            <input type="number" min="0" name="no_of_beneficiaries" id="no_of_beneficiaries" class="form-control" placeholder="e.g., 150">
         </div>
         <div class="col-md-6 mb-3">
-            <label class="form-label">Community Served <span class="text-danger">*</span></label>
-            <input type="text" name="community_population_served" id="community_population_served" class="form-control" required placeholder="e.g., Barangay San Juan">
+            <label class="form-label">Community Served <span class="text-muted" style="font-size:11px;font-weight:400;">(optional)</span></label>
+            <input type="text" name="community_population_served" id="community_population_served" class="form-control" placeholder="e.g., Barangay San Juan">
         </div>
     </div>
     <div class="mb-3">
@@ -617,8 +680,37 @@ function getQRCodeUrl($file_id) {
     </div>
 </div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-success" id="uploadSubmitBtn">Upload</button></div></form></div></div></div>
 
-<!-- QR MODAL -->
+<!-- QR MODAL (files) -->
 <div class="modal fade" id="qrModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;"><h5 class="modal-title"><i class="fas fa-qrcode"></i> Document QR Code</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body" id="qrModalBody"><div class="text-center py-4"><div class="spinner-border text-success"></div><p class="mt-2">Loading QR Code...</p></div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button><a href="#" id="downloadQRBtn" class="btn btn-primary" download style="display:none;">Download QR</a></div></div></div></div>
+
+<!-- NEW: FOLDER QR MODAL -->
+<div class="modal fade" id="folderQRModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;">
+                <h5 class="modal-title"><i class="fas fa-qrcode"></i> Folder QR Code</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="folder-qr-name"><i class="fas fa-folder"></i> <span id="folderQRName">Folder</span></div>
+                <div>
+                    <div class="folder-qr-modal-box">
+                        <img id="folderQRImage" src="" alt="Folder QR Code">
+                    </div>
+                </div>
+                <p class="mt-3 text-muted small"><i class="fas fa-mobile-alt"></i> Scan this QR code to open this folder directly</p>
+                <input type="text" id="folderQRLink" class="form-control form-control-sm" readonly style="font-size:12px;text-align:center;">
+                <div class="small text-muted mt-2" id="folderQRNote"></div>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-primary" onclick="copyFolderQRLink()"><i class="fas fa-copy"></i> Copy Link</button>
+                <button type="button" class="btn btn-success" onclick="downloadFolderQR()"><i class="fas fa-download"></i> Download QR</button>
+                <button type="button" class="btn btn-warning" onclick="printFolderQR()"><i class="fas fa-print"></i> Print QR</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- CN SEARCH MODAL -->
 <div class="modal fade" id="cnSearchModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;"><h5 class="modal-title"><i class="fas fa-hashtag"></i> Search by Control Number</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><p class="text-muted mb-3">Enter control number to find document</p><div class="cn-input-group"><input type="text" id="cnSearchInput" placeholder="USAT-<?php echo str_replace(' ', '', $root_folder_name); ?>-0001" autocomplete="off"><button onclick="searchByCN()"><i class="fas fa-search"></i> Find</button></div><?php if(!empty($recentCN)):?><div class="mt-4"><small class="text-muted"><i class="fas fa-clock"></i> Recent</small><div class="recent-cn-list"><?php foreach($recentCN as $rcn):?><span class="recent-cn-item" onclick="quickCNSearch('<?php echo htmlspecialchars($rcn['control_number']);?>')"><?php echo htmlspecialchars($rcn['control_number']);?></span><?php endforeach;?></div></div><?php endif;?></div></div></div></div>
@@ -629,10 +721,20 @@ function getQRCodeUrl($file_id) {
 // =============================================
 // VARIABLES
 // =============================================
-let newFolderModal, uploadModal, qrModal, cnSearchModal;
+let newFolderModal, uploadModal, qrModal, cnSearchModal, folderQRModal;
 let lastUploadedFileId = null;
 let lastUploadedQRDataUrl = null;
 let selectedFiles = [];
+let currentFolderQR = { name: '', url: '', qr: '' };
+
+// All folders in current view (PHP-injected) - used by "Print All Folder QR"
+const ALL_FOLDERS = <?php echo json_encode(array_map(function($fo) {
+    return [
+        'id'   => (int)$fo['id'],
+        'name' => $fo['folder_name'] ?? '',
+        'url'  => getFolderViewUrl($fo['id'])
+    ];
+}, $subfolders)); ?>;
 
 // All files in current folder (PHP-injected)
 const ALL_FILES = <?php echo json_encode(array_map(function($f) {
@@ -651,6 +753,7 @@ document.addEventListener('DOMContentLoaded', function() {
     uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
     qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
     cnSearchModal = new bootstrap.Modal(document.getElementById('cnSearchModal'));
+    folderQRModal = new bootstrap.Modal(document.getElementById('folderQRModal'));
 
     const si = document.getElementById('searchInput');
     const csb = document.getElementById('clearSearchBtn');
@@ -754,6 +857,156 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }, 100);
 });
+
+// =============================================
+// FOLDER QR CODE (NEW)
+// =============================================
+function openFolderQR(el) {
+    const name = el.getAttribute('data-folder-name') || 'Folder';
+    const url  = el.getAttribute('data-folder-url') || '';
+    if (!url) { alert('Folder link not available'); return; }
+
+    const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=' + encodeURIComponent(url);
+    currentFolderQR = { name: name, url: url, qr: qr };
+
+    document.getElementById('folderQRName').textContent = name;
+    document.getElementById('folderQRImage').src = qr;
+    document.getElementById('folderQRLink').value = url;
+
+    // Warn if link uses localhost (phones can't open it)
+    const note = document.getElementById('folderQRNote');
+    if (/\/\/(localhost|127\.0\.0\.1)/i.test(url)) {
+        note.innerHTML = '<span class="text-warning"><i class="fas fa-exclamation-triangle"></i> This link uses "localhost", so phones cannot open it. Open this system using your computer\'s IP address (e.g. http://192.168.1.10/...) or your live domain, then use this QR.</span>';
+    } else {
+        note.textContent = '';
+    }
+
+    folderQRModal.show();
+}
+
+function copyFolderQRLink() {
+    const input = document.getElementById('folderQRLink');
+    input.select();
+    input.setSelectionRange(0, 99999);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).then(() => showToast('✅ Link copied'));
+    } else {
+        document.execCommand('copy');
+        showToast('✅ Link copied');
+    }
+}
+
+function downloadFolderQR() {
+    if (!currentFolderQR.qr) return;
+    const safeName = (currentFolderQR.name || 'folder').replace(/[^a-z0-9_\-]+/gi, '_');
+    fetch(currentFolderQR.qr)
+        .then(r => { if (!r.ok) throw new Error('QR download failed'); return r.blob(); })
+        .then(blob => {
+            const a = document.createElement('a');
+            const objUrl = URL.createObjectURL(blob);
+            a.href = objUrl;
+            a.download = 'QR_' + safeName + '.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(objUrl);
+        })
+        .catch(() => { window.open(currentFolderQR.qr, '_blank'); });
+}
+
+function printAllFolderQRs() {
+    if (!ALL_FOLDERS || ALL_FOLDERS.length === 0) { alert('No folders to print'); return; }
+
+    const w = window.open('', '_blank', 'width=900,height=700,scrollbars=yes');
+    if (!w) { alert('Please allow pop-ups to print'); return; }
+
+    let cards = '';
+    ALL_FOLDERS.forEach(f => {
+        const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=6&data=' + encodeURIComponent(f.url);
+        cards += `
+            <div class="qr-card">
+                <div class="fname">${escapeHtml(f.name)}</div>
+                <img class="qrimg" src="${qr}" alt="QR">
+                <div class="scan">Scan to open this folder</div>
+            </div>`;
+    });
+
+    const parentName = <?php echo json_encode($current_folder == 1 ? 'My Drive' : ($current_folder_info['folder_name'] ?? 'Folder')); ?>;
+
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Folder QR Codes - ${escapeHtml(parentName)}</title>
+        <style>
+            *{box-sizing:border-box;margin:0;padding:0}
+            body{font-family:Arial,sans-serif;padding:16px;background:#fff}
+            .sheet-title{text-align:center;margin-bottom:14px}
+            .sheet-title h1{font-size:18px;color:#2d3748}
+            .sheet-title p{font-size:11px;color:#718096;margin-top:2px}
+            .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+            .qr-card{border:2px solid #667eea;border-radius:12px;padding:12px 8px;text-align:center;page-break-inside:avoid;break-inside:avoid}
+            .fname{font-size:13px;font-weight:700;color:#2d3748;margin-bottom:8px;word-break:break-word;min-height:34px;display:flex;align-items:center;justify-content:center}
+            .qrimg{width:100%;max-width:190px;height:auto}
+            .scan{font-size:9px;color:#718096;margin-top:6px}
+            .loading{text-align:center;padding:30px;font-size:14px;color:#555}
+            @media print{
+                body{padding:0}
+                .loading{display:none}
+                @page{size:portrait;margin:0.4in}
+                .qr-card{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+            }
+        </style></head><body>
+        <div class="sheet-title">
+            <h1>Folder QR Codes &mdash; ${escapeHtml(parentName)}</h1>
+            <p>USAT Archive System &bull; ${ALL_FOLDERS.length} folder(s) &bull; ${new Date().toLocaleDateString()}</p>
+        </div>
+        <div class="loading" id="loadingMsg">Loading QR codes...</div>
+        <div class="grid">${cards}</div>
+        <script>
+            window.onload = function () {
+                var imgs = Array.prototype.slice.call(document.images);
+                var pending = imgs.length;
+                function done() {
+                    pending--;
+                    if (pending <= 0) {
+                        document.getElementById('loadingMsg').style.display = 'none';
+                        setTimeout(function () { window.print(); }, 300);
+                    }
+                }
+                if (pending === 0) { done(); return; }
+                imgs.forEach(function (img) {
+                    if (img.complete) { done(); }
+                    else { img.onload = done; img.onerror = done; }
+                });
+            };
+        <\/script></body></html>`);
+    w.document.close();
+}
+
+function printFolderQR() {
+    if (!currentFolderQR.qr) return;
+    const w = window.open('', '_blank', 'width=600,height=700');
+    if (!w) { alert('Please allow pop-ups to print'); return; }
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Folder QR - ${escapeHtml(currentFolderQR.name)}</title>
+        <style>
+            body{font-family:Arial,sans-serif;text-align:center;padding:30px}
+            .card{display:inline-block;border:2px solid #667eea;border-radius:16px;padding:24px 30px}
+            h2{margin:0 0 4px;color:#2d3748;font-size:22px;word-break:break-word}
+            .sub{color:#718096;font-size:12px;margin-bottom:14px}
+            img{width:320px;height:320px}
+            .url{font-size:10px;color:#718096;margin-top:10px;word-break:break-all;max-width:320px}
+            @media print{@page{margin:0.4in}}
+        </style></head><body>
+        <div class="card">
+            <h2>${escapeHtml(currentFolderQR.name)}</h2>
+            <div class="sub">USAT Archive System &mdash; Scan to open this folder</div>
+            <img id="qrImg" src="${currentFolderQR.qr}" alt="QR">
+            <div class="url">${escapeHtml(currentFolderQR.url)}</div>
+        </div>
+        <script>
+            var img=document.getElementById('qrImg');
+            function doPrint(){setTimeout(function(){window.print();},200);}
+            if(img.complete){doPrint();}else{img.onload=doPrint;img.onerror=doPrint;}
+        <\/script></body></html>`);
+    w.document.close();
+}
 
 // =============================================
 // TOAST NOTIFICATION
@@ -1093,7 +1346,7 @@ function viewFile(fileId) { window.location.href = 'view_document.php?id=' + fil
 function downloadFile(fileId) { window.location.href = 'download_file.php?id=' + fileId; }
 
 // =============================================
-// QR CODE
+// QR CODE (files)
 // =============================================
 function openQRCode(fileId) {
     window.open('qr_code.php?id=' + fileId, '_blank', 'width=600,height=800,scrollbars=yes');

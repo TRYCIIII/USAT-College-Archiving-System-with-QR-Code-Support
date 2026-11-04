@@ -64,25 +64,33 @@ include 'includes/header.php';
 ?>
 
 <style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
+/* NOTE: the global "* { margin:0; padding:0 }" reset was removed because it also
+   broke the top navbar spacing. Box-sizing is now scoped to this page only. */
 body {
     font-family: 'Inter', sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
 }
 
+.main-content,
+.main-content *,
+.main-content *::before,
+.main-content *::after {
+    box-sizing: border-box;
+}
+
+/* ===== POSITION FIX =====
+   - removed margin-left: 280px (there is no left sidebar, it pushed the card to the right)
+   - card is centered horizontally and vertically under the top navbar */
 .main-content {
-    margin-left: 280px;
-    min-height: 100vh;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    min-height: calc(100vh - 80px);   /* 80px ~ top navbar height; adjust if needed */
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 30px;
+    padding: 30px 20px;
 }
 
 .password-container {
@@ -125,13 +133,14 @@ body {
     font-size: 26px;
     font-weight: 700;
     color: #1a1a2e;
-    margin-bottom: 8px;
+    margin: 0 0 8px;
 }
 
 .password-header p {
     color: #64748b;
     font-size: 14px;
     line-height: 1.6;
+    margin: 0;
 }
 
 /* Form Styles */
@@ -314,7 +323,7 @@ body {
     font-size: 13px;
     font-weight: 600;
     color: #2d3748;
-    margin-bottom: 12px;
+    margin: 0 0 12px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -388,8 +397,8 @@ body {
 /* Responsive */
 @media (max-width: 768px) {
     .main-content {
-        margin-left: 0;
-        padding: 20px;
+        padding: 20px 15px;
+        min-height: calc(100vh - 70px);
     }
     
     .password-card {
@@ -411,6 +420,10 @@ body {
 }
 
 @media (max-width: 480px) {
+    .main-content {
+        padding: 15px 10px;
+    }
+
     .password-card {
         padding: 30px 20px;
     }
@@ -445,14 +458,14 @@ body {
             <?php if($error): ?>
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-circle"></i>
-                    <span><?php echo $error; ?></span>
+                    <span><?php echo htmlspecialchars($error); ?></span>
                 </div>
             <?php endif; ?>
             
             <?php if($success): ?>
                 <div class="alert alert-success">
                     <i class="fas fa-check-circle"></i>
-                    <span><?php echo $success; ?></span>
+                    <span><?php echo htmlspecialchars($success); ?></span>
                 </div>
             <?php endif; ?>
             
@@ -544,7 +557,7 @@ body {
 </div>
 
 <script>
-// Toggle password visibility - FIXED
+// Toggle password visibility
 function togglePassword(fieldId) {
     const field = document.getElementById(fieldId);
     const button = field.parentElement.querySelector('.password-toggle i');
